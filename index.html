@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>모임 일정</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <button id="shareBtn">🔗 링크 공유</button>
+  <div id="nameModal" class="modal" style="display:flex;">
+  <div class="modal-content">
+    <h3>이름 입력</h3>
+    <input id="nameInput" placeholder="이름 입력" />
+    <button id="nameSaveBtn">시작하기</button>
+  </div>
+</div>
+
+<h2>📅 모임 일정</h2>
+
+<div class="calendar" id="calendar"></div>
+
+<!-- 팝업 -->
+<div class="modal" id="modal">
+  <div class="modal-content">
+    <h3 id="selectedDate"></h3>
+    <div class="time-grid" id="timeGrid"></div>
+    <button type="button" id="saveBtn">저장</button>
+  </div>
+</div>
+
+<script type="module" src="script.js"></script>
+</body>
+</html>

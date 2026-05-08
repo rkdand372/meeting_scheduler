@@ -1,0 +1,111 @@
+body {
+  font-family: sans-serif;
+  padding: 20px;
+  background: #f6f8fa;
+}
+
+h2 {
+  margin-bottom: 20px;
+}
+
+/* 달력 */
+.calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  max-width: 500px;
+}
+
+.day {
+  aspect-ratio: 1;
+  background: #ebedf0;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.day:hover {
+  background: #c6e48b;
+}
+
+/* 팝업 */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: none;
+  background: rgba(0,0,0,0.4);
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-content {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  width: 300px;
+}
+
+/* 시간 선택 */
+.time-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.time {
+  padding: 6px;
+  background: #eee;
+  border-radius: 4px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.time.selected {
+  background: #40c463;
+  color: white;
+}
+
+button {
+  margin-top: 10px;
+  width: 100%;
+  padding: 10px;
+  background: #2da44e;
+  color: white;
+  border: none;
+  border-radius: 6px;
+}
+
+input {
+  width: 100%;
+  padding: 8px;
+  margin-top: 10px;
+  box-sizing: border-box;
+}
+
+#shareBtn {
+  margin-bottom: 15px;
+  padding: 8px;
+  border-radius: 6px;
+  border: none;
+  background: #0969da;
+  color: white;
+  cursor: pointer;
+}
+
+/* 🔥 버튼이 항상 클릭되도록 */
+#saveBtn {
+  position: relative;
+  z-index: 9999;
+}
+
+/* 🔥 모달 내용이 위에 오도록 */
+#modal .modal-content {
+  position: relative;
+  z-index: 10;
+}
