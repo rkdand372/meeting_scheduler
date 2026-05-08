@@ -28,11 +28,11 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.59 13.41a1.996 1.996 0 0 0 2.82 0l3.59-3.59a2 2 0 0 0-2.83-2.83l-.88.88-1.41-1.41.88-.88a4 4 0 0 1 5.66 5.66l-3.59 3.59a4 4 0 0 1-5.66 0l1.42-1.42Zm2.82-2.82a1.996 1.996 0 0 0-2.82 0L7 14.18a2 2 0 1 0 2.83 2.83l.88-.88 1.41 1.41-.88.88a4 4 0 0 1-5.66-5.66l3.59-3.59a4 4 0 0 1 5.66 0l-1.42 1.42Z"/></svg>
           초대 링크 복사
         </button>
-        <div class="attendee-count">
+        <div class="attendee-count" id="attendeeCount">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 11c1.66 0 3-1.57 3-3.5S17.66 4 16 4s-3 1.57-3 3.5S14.34 11 16 11ZM8 11c1.66 0 3-1.57 3-3.5S9.66 4 8 4 5 5.57 5 7.5 6.34 11 8 11Zm0 2c-2.67 0-5 1.34-5 3v2h10v-2c0-1.66-2.33-3-5-3Zm8 0c-.38 0-.75.03-1.1.09 1.3.75 2.1 1.78 2.1 2.91v2h4v-2c0-1.66-2.33-3-5-3Z"/></svg>
-          참여자 3
+          참여자 1
         </div>
-        <div class="profile-avatar" aria-label="내 프로필">김</div>
+        <div class="profile-avatar" id="profileAvatar" aria-label="내 프로필">?</div>
       </div>
     </header>
 
@@ -54,38 +54,34 @@
         <div class="calendar-grid" id="calendarGrid" aria-label="2024년 5월 달력"></div>
 
         <div class="legend" aria-label="선택 인원 범례">
-          <span><i class="level-none"></i>아무도 선택 안함</span>
-          <span><i class="level-one"></i>1명 선택</span>
-          <span><i class="level-two"></i>2명 선택</span>
-          <span><i class="level-all"></i>모두 선택</span>
+          <span><i class="level-none"></i>선택 전</span>
+          <span><i class="level-all"></i>내가 선택함</span>
         </div>
 
-        <section class="participants-card" aria-labelledby="participantsTitle">
-          <h2 id="participantsTitle">참여자 현황</h2>
-          <div class="participant-list" id="participantList"></div>
+        <section class="results-card" aria-labelledby="mySelectionTitle">
+          <h2 id="mySelectionTitle">내 선택 결과</h2>
+          <div class="my-selection-list" id="mySelectionList">
+            <p class="empty-text">아직 저장된 선택 결과가 없어요.</p>
+          </div>
         </section>
       </section>
 
       <aside class="summary-panel" aria-labelledby="summaryTitle">
         <div class="summary-date">
-          <p>선택한 날짜</p>
-          <h2 id="summaryTitle">5월 15일 (수)</h2>
+          <p>현재 선택 중</p>
+          <h2 id="summaryTitle">날짜를 선택해주세요</h2>
         </div>
 
         <div class="selected-times">
-          <h3>선택된 시간</h3>
-          <div class="time-chip-row" id="selectedTimes"></div>
+          <h3>선택한 시간</h3>
+          <div class="time-chip-row" id="selectedTimes">
+            <span class="empty-text">시간을 선택하면 여기에 표시돼요.</span>
+          </div>
         </div>
 
-        <div class="availability-list">
-          <h3>참여자별 선택 현황</h3>
-          <div id="availabilityList"></div>
-        </div>
-
-        <div class="best-time">
-          <span>모두 가능한 시간</span>
-          <strong>14:00 - 15:00</strong>
-          <small>(2시간)</small>
+        <div class="preview-count">
+          <h3>참여 인원</h3>
+          <strong id="previewParticipantCount">0명</strong>
         </div>
       </aside>
     </main>

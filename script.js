@@ -2,10 +2,9 @@ const calendarGrid = document.querySelector("#calendarGrid");
 const nameModal = document.querySelector("#nameModal");
 const nameInput = document.querySelector("#nameInput");
 const nameStartBtn = document.querySelector("#nameStartBtn");
-const participantList = document.querySelector("#participantList");
-const availabilityList = document.querySelector("#availabilityList");
 const selectedTimes = document.querySelector("#selectedTimes");
 const summaryTitle = document.querySelector("#summaryTitle");
+const previewParticipantCount = document.querySelector("#previewParticipantCount");
 const timeModal = document.querySelector("#timeModal");
 const modalDate = document.querySelector("#modalDate");
 const timeGrid = document.querySelector("#timeGrid");
@@ -14,8 +13,15 @@ const cancelBtn = document.querySelector("#cancelBtn");
 const saveBtn = document.querySelector("#saveBtn");
 const copyLinkBtn = document.querySelector("#copyLinkBtn");
 const toast = document.querySelector("#toast");
+const mySelectionList = document.querySelector("#mySelectionList");
+const profileAvatar = document.querySelector("#profileAvatar");
 
 let userName = "";
+
+const data = {
+  userName: "",
+  selections: {},
+};
 
 const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
 const times = [
@@ -36,48 +42,9 @@ const times = [
   "23:00",
 ];
 
-const participants = [
-  { name: "김민지", initial: "김", done: true, times: ["14:00", "15:00", "18:00"] },
-  { name: "이서준", initial: "이", done: true, times: ["14:00", "15:00", "16:00"] },
-  { name: "박도현", initial: "박", done: false, times: ["18:00"] },
-];
-
-const availabilityByDate = {
-  1: 1,
-  2: 1,
-  3: 1,
-  4: 1,
-  5: 1,
-  6: 1,
-  7: 2,
-  8: 2,
-  9: 1,
-  10: 2,
-  11: 1,
-  12: 2,
-  13: 1,
-  14: 1,
-  15: 3,
-  16: 2,
-  17: 3,
-  18: 1,
-  19: 1,
-  20: 2,
-  21: 1,
-  22: 1,
-  23: 3,
-  24: 1,
-  25: 1,
-  26: 1,
-  27: 1,
-  28: 3,
-  29: 2,
-  30: 1,
-  31: 1,
-};
-
-let selectedDay = 15;
-let selectedTimeValues = ["14:00", "15:00", "16:00", "18:00"];
+let selectedDay = null;
+let selectedTimeValues = [];
+let isEditing = false;
 
 const calendarRows = [
   { label: "4/28", dates: [28, 29, 30, 1, 2, 3, 4], monthOffset: [-1, -1, -1, 0, 0, 0, 0] },
@@ -87,6 +54,16 @@ const calendarRows = [
   { label: "5/26", dates: [26, 27, 28, 29, 30, 31, 1], monthOffset: [0, 0, 0, 0, 0, 0, 1] },
   { label: "6/2", dates: [2, 3, 4, 5, 6, 7, 8], monthOffset: [1, 1, 1, 1, 1, 1, 1] },
 ];
+
+function getDateKey(day) {
+  return `2024-05-${String(day).padStart(2, "0")}`;
+}
+
+function getDateLabel(day) {
+  const dayOfWeek = weekdays[new Date(2024, 4, day).getDay()];
+
+  return `5월 ${day}일 (${dayOfWeek})`;
+}
 
 function renderCalendar() {
   calendarGrid.innerHTML = "";
@@ -99,13 +76,15 @@ function renderCalendar() {
 
     row.dates.forEach((date, index) => {
       const isCurrentMonth = row.monthOffset[index] === 0;
+      const dateKey = getDateKey(date);
+      const hasSavedSelection = Boolean(data.selections[dateKey]?.length);
       const button = document.createElement("button");
-      const level = isCurrentMonth ? availabilityByDate[date] || 0 : 0;
 
       button.type = "button";
       button.className = [
         "day-cell",
-        isCurrentMonth ? `level-${level}` : "is-muted",
+        isCurrentMonth && hasSavedSelection ? "level-3" : "",
+        !isCurrentMonth ? "is-muted" : "",
         isCurrentMonth && date === selectedDay ? "is-selected" : "",
       ]
         .filter(Boolean)
@@ -114,7 +93,7 @@ function renderCalendar() {
       button.disabled = !isCurrentMonth;
 
       if (isCurrentMonth) {
-        button.addEventListener("click", () => openModal(date));
+        button.addEventListener("click", () => handleDateClick(date));
       }
 
       calendarGrid.appendChild(button);
@@ -122,36 +101,41 @@ function renderCalendar() {
   });
 }
 
-function renderParticipants() {
-  participantList.innerHTML = participants
-    .map((person) => {
-      const statusText = person.done ? `5월 ${selectedDay}일 선택 완료` : "아직 선택하지 않았어요";
-      const dotClass = person.done ? "done" : "";
+function renderSummary() {
+  if (!selectedDay) {
+    summaryTitle.textContent = "날짜를 선택해주세요";
+    selectedTimes.innerHTML = `<span class="empty-text">시간을 선택하면 여기에 표시돼요.</span>`;
+    previewParticipantCount.textContent = "0명";
+    return;
+  }
 
-      return `
-        <div class="participant-row">
-          <div class="avatar">${person.initial}</div>
-          <div class="name">${person.name}</div>
-          <div class="status"><span class="status-dot ${dotClass}"></span>${statusText}</div>
-        </div>
-      `;
-    })
-    .join("");
+  summaryTitle.textContent = getDateLabel(selectedDay);
+  selectedTimes.innerHTML = selectedTimeValues.length
+    ? selectedTimeValues.map((time) => `<span class="time-chip">${time}</span>`).join("")
+    : `<span class="empty-text">선택한 시간이 없어요.</span>`;
+  previewParticipantCount.textContent = selectedTimeValues.length ? "1명" : "0명";
 }
 
-function renderSummary() {
-  const dayOfWeek = weekdays[new Date(2024, 4, selectedDay).getDay()];
+function renderSelectionList() {
+  const savedDates = Object.keys(data.selections).sort();
 
-  summaryTitle.textContent = `5월 ${selectedDay}일 (${dayOfWeek})`;
-  selectedTimes.innerHTML = selectedTimeValues.map((time) => `<span class="time-chip">${time}</span>`).join("");
-  availabilityList.innerHTML = participants
-    .map((person) => {
-      const chips = person.times.map((time) => `<span class="time-chip">${time}</span>`).join("");
+  if (!savedDates.length) {
+    mySelectionList.innerHTML = `<p class="empty-text">아직 저장된 선택 결과가 없어요.</p>`;
+    return;
+  }
+
+  mySelectionList.innerHTML = savedDates
+    .map((dateKey) => {
+      const day = Number(dateKey.split("-")[2]);
+      const chips = data.selections[dateKey].map((time) => `<span class="time-chip">${time}</span>`).join("");
+
       return `
-        <div class="availability-row">
-          <div class="avatar">${person.initial}</div>
-          <div class="name">${person.name}</div>
-          <div class="chip-list">${chips}</div>
+        <div class="selection-item">
+          <div>
+            <strong>${getDateLabel(day)}</strong>
+            <small>${userName || "내"} 선택</small>
+          </div>
+          <div class="time-chip-row">${chips}</div>
         </div>
       `;
     })
@@ -172,25 +156,70 @@ function renderTimeOptions() {
         ? selectedTimeValues.filter((selectedTime) => selectedTime !== time)
         : [...selectedTimeValues, time].sort();
       renderTimeOptions();
+      renderSummary();
     });
     timeGrid.appendChild(button);
   });
 }
 
+function previewDate(date) {
+  selectedDay = date;
+  selectedTimeValues = [...(data.selections[getDateKey(date)] || [])];
+
+  renderCalendar();
+  renderSummary();
+}
+
+function handleDateClick(date) {
+  if (selectedDay === date && !isEditing) {
+    openModal(date);
+    return;
+  }
+
+  previewDate(date);
+}
+
 function openModal(date) {
   selectedDay = date;
-  const dayOfWeek = weekdays[new Date(2024, 4, date).getDay()];
+  selectedTimeValues = [...(data.selections[getDateKey(date)] || [])];
+  isEditing = true;
 
-  modalDate.textContent = `2024년 5월 ${date}일 (${dayOfWeek})`;
+  modalDate.textContent = `2024년 ${getDateLabel(date)}`;
   timeModal.classList.add("is-open");
   timeModal.setAttribute("aria-hidden", "false");
   renderCalendar();
+  renderSummary();
   renderTimeOptions();
 }
 
-function closeModal() {
+function closeModal(restoreSavedSelection = true) {
   timeModal.classList.remove("is-open");
   timeModal.setAttribute("aria-hidden", "true");
+  isEditing = false;
+
+  if (restoreSavedSelection && selectedDay) {
+    selectedTimeValues = [...(data.selections[getDateKey(selectedDay)] || [])];
+    renderSummary();
+  }
+}
+
+function saveSelection() {
+  if (!selectedDay) {
+    return;
+  }
+
+  const dateKey = getDateKey(selectedDay);
+
+  if (selectedTimeValues.length) {
+    data.selections[dateKey] = [...selectedTimeValues];
+  } else {
+    delete data.selections[dateKey];
+  }
+
+  renderCalendar();
+  renderSummary();
+  renderSelectionList();
+  closeModal(false);
 }
 
 function showToast(message) {
@@ -199,13 +228,24 @@ function showToast(message) {
   window.setTimeout(() => toast.classList.remove("is-visible"), 1800);
 }
 
+function startWithName() {
+  const enteredName = nameInput.value.trim();
+
+  if (!enteredName) {
+    alert("이름을 입력해주세요");
+    nameInput.focus();
+    return;
+  }
+
+  userName = enteredName;
+  data.userName = enteredName;
+  profileAvatar.textContent = enteredName[0];
+  nameModal.classList.add("is-hidden");
+}
+
 closeModalBtn.addEventListener("click", closeModal);
 cancelBtn.addEventListener("click", closeModal);
-saveBtn.addEventListener("click", () => {
-  renderParticipants();
-  renderSummary();
-  closeModal();
-});
+saveBtn.addEventListener("click", saveSelection);
 
 timeModal.addEventListener("click", (event) => {
   if (event.target === timeModal) {
@@ -224,19 +264,6 @@ copyLinkBtn.addEventListener("click", async () => {
   }
 });
 
-function startWithName() {
-  const enteredName = nameInput.value.trim();
-
-  if (!enteredName) {
-    alert("이름을 입력해주세요");
-    nameInput.focus();
-    return;
-  }
-
-  userName = enteredName;
-  nameModal.classList.add("is-hidden");
-}
-
 nameStartBtn.addEventListener("click", startWithName);
 nameInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
@@ -245,5 +272,5 @@ nameInput.addEventListener("keydown", (event) => {
 });
 
 renderCalendar();
-renderParticipants();
 renderSummary();
+renderSelectionList();
