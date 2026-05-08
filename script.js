@@ -1,4 +1,7 @@
 const calendarGrid = document.querySelector("#calendarGrid");
+const calendarTitle = document.querySelector("#calendarTitle");
+const prevMonthBtn = document.querySelector("#prevMonthBtn");
+const nextMonthBtn = document.querySelector("#nextMonthBtn");
 const nameModal = document.querySelector("#nameModal");
 const nameInput = document.querySelector("#nameInput");
 const nameStartBtn = document.querySelector("#nameStartBtn");
@@ -42,41 +45,87 @@ const times = [
   "23:00",
 ];
 
-let selectedDay = null;
+const today = new Date();
+const baseMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+const maxMonthOffset = 11;
+
+let displayedMonthOffset = 0;
+let selectedDateKey = "";
 let selectedTimeValues = [];
 let isEditing = false;
 
-const calendarRows = [
-  { label: "4/28", dates: [28, 29, 30, 1, 2, 3, 4], monthOffset: [-1, -1, -1, 0, 0, 0, 0] },
-  { label: "5/5", dates: [5, 6, 7, 8, 9, 10, 11], monthOffset: [0, 0, 0, 0, 0, 0, 0] },
-  { label: "5/12", dates: [12, 13, 14, 15, 16, 17, 18], monthOffset: [0, 0, 0, 0, 0, 0, 0] },
-  { label: "5/19", dates: [19, 20, 21, 22, 23, 24, 25], monthOffset: [0, 0, 0, 0, 0, 0, 0] },
-  { label: "5/26", dates: [26, 27, 28, 29, 30, 31, 1], monthOffset: [0, 0, 0, 0, 0, 0, 1] },
-  { label: "6/2", dates: [2, 3, 4, 5, 6, 7, 8], monthOffset: [1, 1, 1, 1, 1, 1, 1] },
-];
-
-function getDateKey(day) {
-  return `2024-05-${String(day).padStart(2, "0")}`;
+function getDisplayedMonth() {
+  return new Date(baseMonth.getFullYear(), baseMonth.getMonth() + displayedMonthOffset, 1);
 }
 
-function getDateLabel(day) {
-  const dayOfWeek = weekdays[new Date(2024, 4, day).getDay()];
+function formatDateKey(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
 
-  return `5월 ${day}일 (${dayOfWeek})`;
+  return `${year}-${month}-${day}`;
+}
+
+function parseDateKey(dateKey) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+
+  return new Date(year, month - 1, day);
+}
+
+function getDateLabel(dateKey) {
+  const date = parseDateKey(dateKey);
+  const dayOfWeek = weekdays[date.getDay()];
+
+  return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일 (${dayOfWeek})`;
+}
+
+function getMonthLabel(date) {
+  return `${date.getFullYear()}년 ${date.getMonth() + 1}월`;
+}
+
+function getCalendarRows(monthDate) {
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const startDate = new Date(year, month, 1 - firstDay.getDay());
+
+  return Array.from({ length: 6 }, (_, weekIndex) => {
+    const weekStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + weekIndex * 7);
+
+    return {
+      label: `${weekStart.getMonth() + 1}/${weekStart.getDate()}`,
+      days: Array.from({ length: 7 }, (_, dayIndex) => {
+        const date = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + dayIndex);
+
+        return {
+          date,
+          dateKey: formatDateKey(date),
+          isCurrentMonth: date.getMonth() === month,
+        };
+      }),
+    };
+  });
+}
+
+function updateMonthControls() {
+  prevMonthBtn.disabled = displayedMonthOffset === 0;
+  nextMonthBtn.disabled = displayedMonthOffset === maxMonthOffset;
 }
 
 function renderCalendar() {
+  const monthDate = getDisplayedMonth();
+
+  calendarTitle.textContent = getMonthLabel(monthDate);
+  calendarGrid.setAttribute("aria-label", `${getMonthLabel(monthDate)} 달력`);
   calendarGrid.innerHTML = "";
 
-  calendarRows.forEach((row) => {
+  getCalendarRows(monthDate).forEach((row) => {
     const label = document.createElement("div");
     label.className = "week-label";
     label.textContent = row.label;
     calendarGrid.appendChild(label);
 
-    row.dates.forEach((date, index) => {
-      const isCurrentMonth = row.monthOffset[index] === 0;
-      const dateKey = getDateKey(date);
+    row.days.forEach(({ date, dateKey, isCurrentMonth }) => {
       const hasSavedSelection = Boolean(data.selections[dateKey]?.length);
       const button = document.createElement("button");
 
@@ -85,31 +134,34 @@ function renderCalendar() {
         "day-cell",
         isCurrentMonth && hasSavedSelection ? "level-3" : "",
         !isCurrentMonth ? "is-muted" : "",
-        isCurrentMonth && date === selectedDay ? "is-selected" : "",
+        dateKey === selectedDateKey ? "is-selected" : "",
       ]
         .filter(Boolean)
         .join(" ");
-      button.textContent = date;
-      button.disabled = !isCurrentMonth;
+      button.textContent = date.getDate();
 
       if (isCurrentMonth) {
-        button.addEventListener("click", () => handleDateClick(date));
+        button.addEventListener("click", () => handleDateClick(dateKey));
+      } else {
+        button.disabled = true;
       }
 
       calendarGrid.appendChild(button);
     });
   });
+
+  updateMonthControls();
 }
 
 function renderSummary() {
-  if (!selectedDay) {
+  if (!selectedDateKey) {
     summaryTitle.textContent = "날짜를 선택해주세요";
     selectedTimes.innerHTML = `<span class="empty-text">시간을 선택하면 여기에 표시돼요.</span>`;
     previewParticipantCount.textContent = "0명";
     return;
   }
 
-  summaryTitle.textContent = getDateLabel(selectedDay);
+  summaryTitle.textContent = getDateLabel(selectedDateKey);
   selectedTimes.innerHTML = selectedTimeValues.length
     ? selectedTimeValues.map((time) => `<span class="time-chip">${time}</span>`).join("")
     : `<span class="empty-text">선택한 시간이 없어요.</span>`;
@@ -126,13 +178,12 @@ function renderSelectionList() {
 
   mySelectionList.innerHTML = savedDates
     .map((dateKey) => {
-      const day = Number(dateKey.split("-")[2]);
       const chips = data.selections[dateKey].map((time) => `<span class="time-chip">${time}</span>`).join("");
 
       return `
         <div class="selection-item">
           <div>
-            <strong>${getDateLabel(day)}</strong>
+            <strong>${getDateLabel(dateKey)}</strong>
             <small>${userName || "내"} 선택</small>
           </div>
           <div class="time-chip-row">${chips}</div>
@@ -162,29 +213,29 @@ function renderTimeOptions() {
   });
 }
 
-function previewDate(date) {
-  selectedDay = date;
-  selectedTimeValues = [...(data.selections[getDateKey(date)] || [])];
+function previewDate(dateKey) {
+  selectedDateKey = dateKey;
+  selectedTimeValues = [...(data.selections[dateKey] || [])];
 
   renderCalendar();
   renderSummary();
 }
 
-function handleDateClick(date) {
-  if (selectedDay === date && !isEditing) {
-    openModal(date);
+function handleDateClick(dateKey) {
+  if (selectedDateKey === dateKey && !isEditing) {
+    openModal(dateKey);
     return;
   }
 
-  previewDate(date);
+  previewDate(dateKey);
 }
 
-function openModal(date) {
-  selectedDay = date;
-  selectedTimeValues = [...(data.selections[getDateKey(date)] || [])];
+function openModal(dateKey) {
+  selectedDateKey = dateKey;
+  selectedTimeValues = [...(data.selections[dateKey] || [])];
   isEditing = true;
 
-  modalDate.textContent = `2024년 ${getDateLabel(date)}`;
+  modalDate.textContent = getDateLabel(dateKey);
   timeModal.classList.add("is-open");
   timeModal.setAttribute("aria-hidden", "false");
   renderCalendar();
@@ -197,23 +248,21 @@ function closeModal(restoreSavedSelection = true) {
   timeModal.setAttribute("aria-hidden", "true");
   isEditing = false;
 
-  if (restoreSavedSelection && selectedDay) {
-    selectedTimeValues = [...(data.selections[getDateKey(selectedDay)] || [])];
+  if (restoreSavedSelection && selectedDateKey) {
+    selectedTimeValues = [...(data.selections[selectedDateKey] || [])];
     renderSummary();
   }
 }
 
 function saveSelection() {
-  if (!selectedDay) {
+  if (!selectedDateKey) {
     return;
   }
 
-  const dateKey = getDateKey(selectedDay);
-
   if (selectedTimeValues.length) {
-    data.selections[dateKey] = [...selectedTimeValues];
+    data.selections[selectedDateKey] = [...selectedTimeValues];
   } else {
-    delete data.selections[dateKey];
+    delete data.selections[selectedDateKey];
   }
 
   renderCalendar();
@@ -243,6 +292,19 @@ function startWithName() {
   nameModal.classList.add("is-hidden");
 }
 
+function moveMonth(direction) {
+  const nextOffset = displayedMonthOffset + direction;
+
+  if (nextOffset < 0 || nextOffset > maxMonthOffset) {
+    return;
+  }
+
+  displayedMonthOffset = nextOffset;
+  renderCalendar();
+}
+
+prevMonthBtn.addEventListener("click", () => moveMonth(-1));
+nextMonthBtn.addEventListener("click", () => moveMonth(1));
 closeModalBtn.addEventListener("click", closeModal);
 cancelBtn.addEventListener("click", closeModal);
 saveBtn.addEventListener("click", saveSelection);

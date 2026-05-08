@@ -39,11 +39,11 @@
     <main class="workspace">
       <section class="calendar-panel" aria-labelledby="calendarTitle">
         <div class="month-header">
-          <button class="icon-button" type="button" aria-label="이전 달">
+          <button class="icon-button" type="button" id="prevMonthBtn" aria-label="이전 달">
             <svg viewBox="0 0 24 24"><path d="m15.41 7.41-1.42-1.41L8 12l5.99 6 1.42-1.41L10.83 12l4.58-4.59Z"/></svg>
           </button>
-          <h1 id="calendarTitle">2024년 5월</h1>
-          <button class="icon-button" type="button" aria-label="다음 달">
+          <h1 id="calendarTitle">달력</h1>
+          <button class="icon-button" type="button" id="nextMonthBtn" aria-label="다음 달">
             <svg viewBox="0 0 24 24"><path d="m8.59 16.59 1.42 1.41L16 12 10.01 6 8.59 7.41 13.17 12l-4.58 4.59Z"/></svg>
           </button>
         </div>
@@ -51,7 +51,7 @@
         <div class="weekday-row" aria-hidden="true">
           <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
         </div>
-        <div class="calendar-grid" id="calendarGrid" aria-label="2024년 5월 달력"></div>
+        <div class="calendar-grid" id="calendarGrid" aria-label="월별 달력"></div>
 
         <div class="legend" aria-label="선택 인원 범례">
           <span><i class="level-none"></i>선택 전</span>
@@ -95,7 +95,7 @@
       <p class="modal-label">날짜 선택</p>
       <h2 id="modalTitle">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h2v2h6V2h2v2h3v18H4V4h3V2Zm13 8H6v10h14V10ZM6 8h14V6H6v2Z"/></svg>
-        <span id="modalDate">2024년 5월 15일 (수)</span>
+        <span id="modalDate">날짜를 선택해주세요</span>
       </h2>
       <p class="time-helper">시간 선택 (복수 선택 가능)</p>
       <div class="time-grid" id="timeGrid"></div>
