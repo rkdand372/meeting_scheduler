@@ -74,6 +74,7 @@ const nextMonthBtn = document.querySelector("#nextMonthBtn");
 const selectedTimes = document.querySelector("#selectedTimes");
 const summaryTitle = document.querySelector("#summaryTitle");
 const previewParticipantCount = document.querySelector("#previewParticipantCount");
+const attendeeCountValue = document.querySelector("#attendeeCountValue");
 const participantTimeList = document.querySelector("#participantTimeList");
 const timeModal = document.querySelector("#timeModal");
 const modalDate = document.querySelector("#modalDate");
@@ -159,6 +160,17 @@ function getActiveParticipantId() {
 
 function getActiveParticipantName() {
   return currentUser?.displayName || currentUser?.email || userName || "사용자";
+}
+
+function getRoomParticipantCount(room) {
+  const participantUids = Array.isArray(room.participantUids) ? room.participantUids : [];
+  const participantIds = Array.isArray(room.participantIds) ? room.participantIds : [];
+
+  return new Set([...participantUids, ...participantIds]).size;
+}
+
+function updateAttendeeCount(count = 0) {
+  attendeeCountValue.textContent = String(count);
 }
 
 function escapeHtml(value) {
@@ -724,6 +736,7 @@ function showMyPageView() {
   activeRoomId = "";
   brandTitle.textContent = "모임 일정";
   setAdminControlsVisible(true);
+  updateAttendeeCount(0);
   data.selections = {};
   data.dateUserCounts = {};
   data.dateParticipants = {};
@@ -910,6 +923,7 @@ async function openRoom(roomId, updateUrl = true) {
   const roomTitle = roomSnapshot.data().title || "";
 
   brandTitle.textContent = roomTitle || "모임 일정";
+  updateAttendeeCount(getRoomParticipantCount(roomSnapshot.data()));
 
   if (updateUrl) {
     window.history.pushState(null, "", "?room=" + roomId);
@@ -938,7 +952,7 @@ async function joinRoomIfAvailable(roomId) {
   const room = roomSnapshot.data();
   const participantUids = Array.isArray(room.participantUids) ? room.participantUids : [];
   const participantIds = Array.isArray(room.participantIds) ? room.participantIds : [];
-  const totalParticipantCount = new Set([...participantUids, ...participantIds]).size;
+  const totalParticipantCount = getRoomParticipantCount(room);
 
   if (participantUids.includes(activeParticipantId) || participantIds.includes(activeParticipantId)) {
     return true;
@@ -959,6 +973,7 @@ async function joinRoomIfAvailable(roomId) {
     });
   }
 
+  updateAttendeeCount(totalParticipantCount + 1);
   return true;
 }
 
