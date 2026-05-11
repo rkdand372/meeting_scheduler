@@ -20,6 +20,7 @@ import {
   serverTimestamp,
   setDoc,
   where,
+  writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -47,6 +48,10 @@ const authGate = document.querySelector("#authGate");
 const googleLoginBtn = document.querySelector("#googleLoginBtn");
 const logoutBtn = document.querySelector("#logoutBtn");
 const createRoomBtn = document.querySelector("#createRoomBtn");
+const addRoomBtn = document.querySelector("#addRoomBtn");
+const myPageBtn = document.querySelector("#myPageBtn");
+const myPageView = document.querySelector("#myPageView");
+const schedulerView = document.querySelector("#schedulerView");
 const signedUserName = document.querySelector("#signedUserName");
 const myPageName = document.querySelector("#myPageName");
 const myPageEmail = document.querySelector("#myPageEmail");
@@ -73,6 +78,7 @@ const profileAvatar = document.querySelector("#profileAvatar");
 let userName = "";
 let currentUser = null;
 let myRooms = [];
+let activeRoomId = new URLSearchParams(window.location.search).get("room") || "";
 
 const data = {
   userName: "",
@@ -247,6 +253,45 @@ function renderSelectionList() {
     .join("");
 }
 
+async function loadRoomCalendarData(roomId) {
+  data.selections = {};
+  selectedDateKey = "";
+  selectedTimeValues = [];
+
+  const applyScheduleSnapshot = (snapshot) => {
+    snapshot.forEach((scheduleDoc) => {
+      const schedule = scheduleDoc.data();
+      const dateKey = schedule.date || scheduleDoc.id;
+      const timesForDate = Array.isArray(schedule.times) ? schedule.times : [];
+
+      if (dateKey && timesForDate.length) {
+        data.selections[dateKey] = timesForDate;
+      }
+    });
+  };
+
+  try {
+    const schedulesSnapshot = await getDocs(collection(db, "rooms", roomId, "schedules"));
+
+    applyScheduleSnapshot(schedulesSnapshot);
+  } catch (error) {
+    console.error(error);
+  }
+
+  try {
+    const topLevelSchedulesQuery = query(collection(db, "schedules"), where("roomId", "==", roomId));
+    const topLevelSnapshot = await getDocs(topLevelSchedulesQuery);
+
+    applyScheduleSnapshot(topLevelSnapshot);
+  } catch (error) {
+    console.error(error);
+  }
+
+  renderCalendar();
+  renderSummary();
+  renderSelectionList();
+}
+
 function renderRoomList() {
   if (!myRooms.length) {
     roomList.innerHTML = `<p class="empty-text">아직 만든 모임이 없어요.</p>`;
@@ -335,7 +380,7 @@ function closeModal(restoreSavedSelection = true) {
   }
 }
 
-function saveSelection() {
+async function saveSelection() {
   if (!selectedDateKey) {
     return;
   }
@@ -346,10 +391,32 @@ function saveSelection() {
     delete data.selections[selectedDateKey];
   }
 
-  renderCalendar();
-  renderSummary();
-  renderSelectionList();
-  closeModal(false);
+  try {
+    if (activeRoomId) {
+      const scheduleRef = doc(db, "rooms", activeRoomId, "schedules", selectedDateKey);
+
+      if (selectedTimeValues.length) {
+        await setDoc(scheduleRef, {
+          roomId: activeRoomId,
+          date: selectedDateKey,
+          times: [...selectedTimeValues],
+          updatedAt: serverTimestamp(),
+          updatedByUid: currentUser?.uid || "",
+          updatedByName: currentUser?.displayName || currentUser?.email || userName || "사용자",
+        });
+      } else {
+        await deleteDoc(scheduleRef);
+      }
+    }
+
+    renderCalendar();
+    renderSummary();
+    renderSelectionList();
+    closeModal(false);
+  } catch (error) {
+    console.error(error);
+    alert("일정 저장에 실패했어요.");
+  }
 }
 
 function showToast(message) {
@@ -367,12 +434,16 @@ function showSignedOut() {
   myRooms = [];
   renderRoomList();
   appShell.classList.add("is-hidden");
+  myPageView.classList.add("is-hidden");
+  schedulerView.classList.add("is-hidden");
   authGate.classList.remove("is-hidden");
 }
 
 async function showSignedIn(user) {
   currentUser = user;
   userName = user.displayName || user.email || "사용자";
+  console.log("로그인 사용자 uid:", user.uid);
+  console.log("로그인 사용자 displayName:", user.displayName);
   data.userName = userName;
   signedUserName.textContent = userName;
   myPageName.textContent = userName;
@@ -382,6 +453,11 @@ async function showSignedIn(user) {
   authGate.classList.add("is-hidden");
   appShell.classList.remove("is-hidden");
   await loadMyRooms();
+  if (activeRoomId) {
+    await openRoom(activeRoomId, false);
+  } else {
+    showMyPageView();
+  }
 }
 
 async function loginWithGoogle() {
@@ -395,13 +471,34 @@ async function loginWithGoogle() {
   try {
     await signInWithPopup(auth, googleProvider);
   } catch (error) {
-    authError.textContent = "Google 로그인에 실패했어요. Firebase 설정을 확인해주세요.";
+    authError.textContent = `Google 로그인 실패: ${error.code || error.message}`;
     console.error(error);
   }
 }
 
 async function logout() {
   await signOut(auth);
+}
+
+function showMyPageView() {
+  activeRoomId = "";
+  data.selections = {};
+  selectedDateKey = "";
+  selectedTimeValues = [];
+  const pageUrl = new URL(window.location.href);
+
+  pageUrl.searchParams.delete("room");
+  window.history.pushState({}, "", pageUrl.toString());
+  renderCalendar();
+  renderSummary();
+  renderSelectionList();
+  myPageView.classList.remove("is-hidden");
+  schedulerView.classList.add("is-hidden");
+}
+
+function showSchedulerView() {
+  myPageView.classList.add("is-hidden");
+  schedulerView.classList.remove("is-hidden");
 }
 
 async function createRoom() {
@@ -430,11 +527,23 @@ async function createRoom() {
     });
 
     showToast("새 모임을 만들었어요");
-    await loadMyRooms();
+    loadMyRooms().catch((error) => console.error(error));
+    await openRoom(roomId);
   } catch (error) {
     console.error(error);
     alert("모임 생성에 실패했어요. Firestore 설정을 확인해주세요.");
   }
+}
+
+function addRoom() {
+  const roomId = prompt("추가할 모임의 roomId를 입력해주세요");
+
+  if (!roomId?.trim()) {
+    alert("roomId를 입력해주세요");
+    return;
+  }
+
+  enterRoom(roomId.trim());
 }
 
 async function loadMyRooms() {
@@ -464,6 +573,7 @@ async function deleteRoom(roomId) {
   }
 
   try {
+    await deleteRoomSchedules(roomId);
     await deleteDoc(doc(db, "rooms", roomId));
     showToast("모임을 삭제했어요");
     await loadMyRooms();
@@ -473,11 +583,41 @@ async function deleteRoom(roomId) {
   }
 }
 
-function enterRoom(roomId) {
-  const roomUrl = new URL(window.location.href);
+async function deleteRoomSchedules(roomId) {
+  const batch = writeBatch(db);
+  const subcollectionSnapshot = await getDocs(collection(db, "rooms", roomId, "schedules"));
+  const topLevelSchedulesQuery = query(collection(db, "schedules"), where("roomId", "==", roomId));
+  const topLevelSnapshot = await getDocs(topLevelSchedulesQuery);
+  let deleteCount = 0;
 
-  roomUrl.searchParams.set("room", roomId);
-  window.location.href = roomUrl.toString();
+  subcollectionSnapshot.forEach((scheduleDoc) => {
+    batch.delete(scheduleDoc.ref);
+    deleteCount += 1;
+  });
+
+  topLevelSnapshot.forEach((scheduleDoc) => {
+    batch.delete(scheduleDoc.ref);
+    deleteCount += 1;
+  });
+
+  if (deleteCount > 0) {
+    await batch.commit();
+  }
+}
+
+async function enterRoom(roomId) {
+  await openRoom(roomId);
+}
+
+async function openRoom(roomId, updateUrl = true) {
+  activeRoomId = roomId;
+
+  if (updateUrl) {
+    window.history.pushState(null, "", "?room=" + roomId);
+  }
+
+  showSchedulerView();
+  await loadRoomCalendarData(roomId);
 }
 
 function moveMonth(direction) {
@@ -494,6 +634,8 @@ function moveMonth(direction) {
 googleLoginBtn.addEventListener("click", loginWithGoogle);
 logoutBtn.addEventListener("click", logout);
 createRoomBtn.addEventListener("click", createRoom);
+addRoomBtn.addEventListener("click", addRoom);
+myPageBtn.addEventListener("click", showMyPageView);
 prevMonthBtn.addEventListener("click", () => moveMonth(-1));
 nextMonthBtn.addEventListener("click", () => moveMonth(1));
 closeModalBtn.addEventListener("click", closeModal);
@@ -507,10 +649,17 @@ timeModal.addEventListener("click", (event) => {
 });
 
 copyLinkBtn.addEventListener("click", async () => {
-  const link = window.location.href;
+  if (!activeRoomId) {
+    showToast("입장한 모임이 없어요");
+    return;
+  }
+
+  const roomUrl = new URL(window.location.href);
+
+  roomUrl.searchParams.set("room", activeRoomId);
 
   try {
-    await navigator.clipboard.writeText(link);
+    await navigator.clipboard.writeText(roomUrl.toString());
     showToast("초대 링크를 복사했어요");
   } catch {
     showToast("현재 주소를 복사해 초대할 수 있어요");

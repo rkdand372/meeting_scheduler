@@ -23,11 +23,7 @@
         <span>모임 일정</span>
       </div>
       <div class="top-actions">
-        <button class="ghost-button" type="button" id="copyLinkBtn">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.59 13.41a1.996 1.996 0 0 0 2.82 0l3.59-3.59a2 2 0 0 0-2.83-2.83l-.88.88-1.41-1.41.88-.88a4 4 0 0 1 5.66 5.66l-3.59 3.59a4 4 0 0 1-5.66 0l1.42-1.42Zm2.82-2.82a1.996 1.996 0 0 0-2.82 0L7 14.18a2 2 0 1 0 2.83 2.83l.88-.88 1.41 1.41-.88.88a4 4 0 0 1-5.66-5.66l3.59-3.59a4 4 0 0 1 5.66 0l-1.42 1.42Z"/></svg>
-          초대 링크 복사
-        </button>
-        <button class="ghost-button" type="button" id="createRoomBtn">새 모임 만들기</button>
+        <button class="ghost-button" type="button" id="myPageBtn">마이페이지</button>
         <div class="signed-user" id="signedUserName">사용자</div>
         <button class="ghost-button" type="button" id="logoutBtn">로그아웃</button>
         <div class="attendee-count" id="attendeeCount">
@@ -38,7 +34,27 @@
       </div>
     </header>
 
-    <main class="workspace">
+    <main class="mypage-view" id="myPageView">
+      <section class="results-card my-page" id="myPage" aria-labelledby="myPageTitle">
+        <h2 id="myPageTitle">마이페이지</h2>
+        <p><strong id="myPageName">사용자</strong></p>
+        <p class="empty-text" id="myPageEmail"></p>
+
+        <div class="mypage-actions">
+          <button class="primary-button" type="button" id="createRoomBtn">새 모임 만들기</button>
+          <button class="secondary-button" type="button" id="addRoomBtn">모임 추가하기</button>
+        </div>
+
+        <div class="room-list-block">
+          <h3>내 모임 목록</h3>
+          <div class="room-list" id="roomList">
+            <p class="empty-text">아직 만든 모임이 없어요.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <main class="workspace is-hidden" id="schedulerView">
       <section class="calendar-panel" aria-labelledby="calendarTitle">
         <div class="month-header">
           <button class="icon-button" type="button" id="prevMonthBtn" aria-label="이전 달">
@@ -47,6 +63,12 @@
           <h1 id="calendarTitle">달력</h1>
           <button class="icon-button" type="button" id="nextMonthBtn" aria-label="다음 달">
             <svg viewBox="0 0 24 24"><path d="m8.59 16.59 1.42 1.41L16 12 10.01 6 8.59 7.41 13.17 12l-4.58 4.59Z"/></svg>
+          </button>
+        </div>
+        <div class="scheduler-actions">
+          <button class="ghost-button" type="button" id="copyLinkBtn">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.59 13.41a1.996 1.996 0 0 0 2.82 0l3.59-3.59a2 2 0 0 0-2.83-2.83l-.88.88-1.41-1.41.88-.88a4 4 0 0 1 5.66 5.66l-3.59 3.59a4 4 0 0 1-5.66 0l1.42-1.42Zm2.82-2.82a1.996 1.996 0 0 0-2.82 0L7 14.18a2 2 0 1 0 2.83 2.83l.88-.88 1.41 1.41-.88.88a4 4 0 0 1-5.66-5.66l3.59-3.59a4 4 0 0 1 5.66 0l-1.42 1.42Z"/></svg>
+            초대 링크 복사
           </button>
         </div>
 
@@ -64,18 +86,6 @@
           <h2 id="mySelectionTitle">내 선택 결과</h2>
           <div class="my-selection-list" id="mySelectionList">
             <p class="empty-text">아직 저장된 선택 결과가 없어요.</p>
-          </div>
-        </section>
-
-        <section class="results-card my-page" id="myPage" aria-labelledby="myPageTitle">
-          <h2 id="myPageTitle">마이페이지</h2>
-          <p><strong id="myPageName">사용자</strong></p>
-          <p class="empty-text" id="myPageEmail"></p>
-          <div class="room-list-block">
-            <h3>내 모임 목록</h3>
-            <div class="room-list" id="roomList">
-              <p class="empty-text">아직 만든 모임이 없어요.</p>
-            </div>
           </div>
         </section>
       </section>

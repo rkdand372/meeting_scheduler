@@ -62,6 +62,11 @@ svg {
   display: none;
 }
 
+.mypage-view.is-hidden,
+.workspace.is-hidden {
+  display: none;
+}
+
 .name-card {
   display: grid;
   gap: 14px;
@@ -198,6 +203,15 @@ svg {
   min-height: calc(100vh - 106px);
 }
 
+.mypage-view {
+  min-height: calc(100vh - 106px);
+  padding: 44px clamp(18px, 6vw, 84px);
+}
+
+.mypage-view .my-page {
+  max-width: 860px;
+}
+
 .calendar-panel {
   padding: 44px clamp(24px, 5vw, 84px) 38px;
 }
@@ -207,7 +221,7 @@ svg {
   align-items: center;
   justify-content: center;
   gap: 22px;
-  margin-bottom: 30px;
+  margin-bottom: 16px;
 }
 
 .month-header h1 {
@@ -238,6 +252,12 @@ svg {
 
 .icon-button:disabled:hover {
   background: transparent;
+}
+
+.scheduler-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 22px;
 }
 
 .weekday-row,
@@ -363,6 +383,19 @@ svg {
 
 .my-page p {
   margin: 8px 0 0;
+}
+
+.mypage-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.mypage-actions .primary-button,
+.mypage-actions .secondary-button {
+  width: auto;
+  padding: 0 18px;
 }
 
 .room-list-block {
