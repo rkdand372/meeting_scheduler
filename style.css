@@ -365,6 +365,57 @@ svg {
   margin: 8px 0 0;
 }
 
+.room-list-block {
+  margin-top: 24px;
+}
+
+.room-list-block h3 {
+  margin: 0 0 14px;
+  font-size: 16px;
+}
+
+.room-list {
+  display: grid;
+  gap: 12px;
+}
+
+.room-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.room-card strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.room-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.danger-button {
+  min-height: 42px;
+  border: 1px solid #efb4ad;
+  border-radius: 6px;
+  color: #a83224;
+  font-weight: 800;
+  background: #fff7f6;
+  cursor: pointer;
+}
+
+.danger-button:hover {
+  background: #fdecea;
+}
+
 .participants-card h2,
 .results-card h2,
 .summary-panel h2,
@@ -779,6 +830,14 @@ svg {
 
   .selection-item {
     grid-template-columns: 1fr;
+  }
+
+  .room-card {
+    grid-template-columns: 1fr;
+  }
+
+  .room-actions {
+    justify-content: flex-start;
   }
 
   .time-grid {

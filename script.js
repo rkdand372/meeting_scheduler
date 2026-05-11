@@ -12,10 +12,14 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import {
   collection,
+  deleteDoc,
   doc,
   getFirestore,
+  getDocs,
+  query,
   serverTimestamp,
   setDoc,
+  where,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -46,6 +50,7 @@ const createRoomBtn = document.querySelector("#createRoomBtn");
 const signedUserName = document.querySelector("#signedUserName");
 const myPageName = document.querySelector("#myPageName");
 const myPageEmail = document.querySelector("#myPageEmail");
+const roomList = document.querySelector("#roomList");
 const authError = document.querySelector("#authError");
 const calendarGrid = document.querySelector("#calendarGrid");
 const calendarTitle = document.querySelector("#calendarTitle");
@@ -67,6 +72,7 @@ const profileAvatar = document.querySelector("#profileAvatar");
 
 let userName = "";
 let currentUser = null;
+let myRooms = [];
 
 const data = {
   userName: "",
@@ -241,6 +247,27 @@ function renderSelectionList() {
     .join("");
 }
 
+function renderRoomList() {
+  if (!myRooms.length) {
+    roomList.innerHTML = `<p class="empty-text">아직 만든 모임이 없어요.</p>`;
+    return;
+  }
+
+  roomList.innerHTML = myRooms
+    .map(
+      (room) => `
+        <article class="room-card">
+          <strong>${room.title}</strong>
+          <div class="room-actions">
+            <button class="secondary-button" type="button" data-room-enter="${room.roomId}">입장</button>
+            <button class="danger-button" type="button" data-room-delete="${room.roomId}">삭제</button>
+          </div>
+        </article>
+      `,
+    )
+    .join("");
+}
+
 function renderTimeOptions() {
   timeGrid.innerHTML = "";
 
@@ -337,11 +364,13 @@ function hasFirebaseConfig() {
 
 function showSignedOut() {
   currentUser = null;
+  myRooms = [];
+  renderRoomList();
   appShell.classList.add("is-hidden");
   authGate.classList.remove("is-hidden");
 }
 
-function showSignedIn(user) {
+async function showSignedIn(user) {
   currentUser = user;
   userName = user.displayName || user.email || "사용자";
   data.userName = userName;
@@ -352,6 +381,7 @@ function showSignedIn(user) {
   authError.textContent = "";
   authGate.classList.add("is-hidden");
   appShell.classList.remove("is-hidden");
+  await loadMyRooms();
 }
 
 async function loginWithGoogle() {
@@ -400,10 +430,51 @@ async function createRoom() {
     });
 
     showToast("새 모임을 만들었어요");
+    await loadMyRooms();
   } catch (error) {
     console.error(error);
     alert("모임 생성에 실패했어요. Firestore 설정을 확인해주세요.");
   }
+}
+
+async function loadMyRooms() {
+  if (!currentUser) {
+    myRooms = [];
+    renderRoomList();
+    return;
+  }
+
+  try {
+    const roomsQuery = query(collection(db, "rooms"), where("ownerUid", "==", currentUser.uid));
+    const snapshot = await getDocs(roomsQuery);
+
+    myRooms = snapshot.docs
+      .map((roomDoc) => ({ id: roomDoc.id, ...roomDoc.data() }))
+      .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    renderRoomList();
+  } catch (error) {
+    console.error(error);
+    roomList.innerHTML = `<p class="empty-text">모임 목록을 불러오지 못했어요.</p>`;
+  }
+}
+
+async function deleteRoom(roomId) {
+  if (!confirm("이 모임을 삭제할까요?")) {
+    return;
+  }
+
+  try {
+    await deleteDoc(doc(db, "rooms", roomId));
+    showToast("모임을 삭제했어요");
+    await loadMyRooms();
+  } catch (error) {
+    console.error(error);
+    alert("모임 삭제에 실패했어요.");
+  }
+}
+
+function enterRoom(roomId) {
+  showToast(`모임 ${roomId}에 입장했어요`);
 }
 
 function moveMonth(direction) {
@@ -440,6 +511,19 @@ copyLinkBtn.addEventListener("click", async () => {
     showToast("초대 링크를 복사했어요");
   } catch {
     showToast("현재 주소를 복사해 초대할 수 있어요");
+  }
+});
+
+roomList.addEventListener("click", (event) => {
+  const enterButton = event.target.closest("[data-room-enter]");
+  const deleteButton = event.target.closest("[data-room-delete]");
+
+  if (enterButton) {
+    enterRoom(enterButton.dataset.roomEnter);
+  }
+
+  if (deleteButton) {
+    deleteRoom(deleteButton.dataset.roomDelete);
   }
 });
 
