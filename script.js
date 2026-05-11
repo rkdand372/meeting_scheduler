@@ -11,6 +11,7 @@ import {
   signOut,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import {
+  arrayUnion,
   collection,
   deleteDoc,
   deleteField,
@@ -504,7 +505,13 @@ async function showSignedIn(user) {
   appShell.classList.remove("is-hidden");
   await loadMyRooms();
   if (activeRoomId) {
-    await openRoom(activeRoomId, false);
+    const canEnter = await joinRoomIfAvailable(activeRoomId);
+
+    if (canEnter) {
+      await openRoom(activeRoomId, false);
+    } else {
+      showMyPageView();
+    }
   } else {
     showMyPageView();
   }
@@ -574,6 +581,7 @@ async function createRoom() {
       title: title.trim(),
       ownerUid: currentUser.uid,
       ownerName: currentUser.displayName || currentUser.email || "사용자",
+      participantUids: [currentUser.uid],
       createdAt: serverTimestamp(),
     });
 
@@ -657,7 +665,11 @@ async function deleteRoomSchedules(roomId) {
 }
 
 async function enterRoom(roomId) {
-  await openRoom(roomId);
+  const canEnter = await joinRoomIfAvailable(roomId);
+
+  if (canEnter) {
+    await openRoom(roomId);
+  }
 }
 
 async function openRoom(roomId, updateUrl = true) {
@@ -669,6 +681,39 @@ async function openRoom(roomId, updateUrl = true) {
 
   showSchedulerView();
   await loadRoomCalendarData(roomId);
+}
+
+async function joinRoomIfAvailable(roomId) {
+  if (!currentUser) {
+    alert("로그인 후 모임에 입장할 수 있어요.");
+    return false;
+  }
+
+  const roomRef = doc(db, "rooms", roomId);
+  const roomSnapshot = await getDoc(roomRef);
+
+  if (!roomSnapshot.exists()) {
+    alert("존재하지 않는 모임이에요.");
+    return false;
+  }
+
+  const room = roomSnapshot.data();
+  const participantUids = Array.isArray(room.participantUids) ? room.participantUids : [];
+
+  if (participantUids.includes(currentUser.uid)) {
+    return true;
+  }
+
+  if (participantUids.length >= 50) {
+    alert("이 모임은 최대 50명까지 참여할 수 있어요");
+    return false;
+  }
+
+  await updateDoc(roomRef, {
+    participantUids: arrayUnion(currentUser.uid),
+  });
+
+  return true;
 }
 
 function moveMonth(direction) {
