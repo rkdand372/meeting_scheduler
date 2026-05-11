@@ -62,6 +62,10 @@ svg {
   display: none;
 }
 
+.is-hidden {
+  display: none !important;
+}
+
 .mypage-view.is-hidden,
 .workspace.is-hidden {
   display: none;
@@ -75,6 +79,16 @@ svg {
   border-radius: 8px;
   background: var(--surface);
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.24);
+}
+
+.auth-mode {
+  display: grid;
+  gap: 14px;
+}
+
+.auth-mode.is-hidden,
+.top-actions .is-hidden {
+  display: none;
 }
 
 .name-card h2 {

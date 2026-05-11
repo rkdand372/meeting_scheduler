@@ -49,6 +49,10 @@ const db = getFirestore(firebaseApp);
 
 const appShell = document.querySelector("#appShell");
 const authGate = document.querySelector("#authGate");
+const adminLoginPanel = document.querySelector("#adminLoginPanel");
+const participantNamePanel = document.querySelector("#participantNamePanel");
+const participantNameInput = document.querySelector("#participantNameInput");
+const participantStartBtn = document.querySelector("#participantStartBtn");
 const googleLoginBtn = document.querySelector("#googleLoginBtn");
 const kakaoBrowserWarning = document.querySelector("#kakaoBrowserWarning");
 const logoutBtn = document.querySelector("#logoutBtn");
@@ -83,6 +87,7 @@ const profileAvatar = document.querySelector("#profileAvatar");
 
 let userName = "";
 let currentUser = null;
+let participantId = "";
 let myRooms = [];
 let activeRoomId = new URLSearchParams(window.location.search).get("room") || "";
 
@@ -120,6 +125,39 @@ let displayedMonthOffset = 0;
 let selectedDateKey = "";
 let selectedTimeValues = [];
 let isEditing = false;
+
+function getRoomIdFromUrl() {
+  return new URLSearchParams(window.location.search).get("room") || "";
+}
+
+function getParticipantStorageKey(roomId) {
+  return `meeting-scheduler:participant:${roomId}`;
+}
+
+function ensureParticipantId(roomId) {
+  const storageKey = getParticipantStorageKey(roomId);
+  const savedId = localStorage.getItem(storageKey);
+
+  if (savedId) {
+    return savedId;
+  }
+
+  const randomId = crypto.randomUUID
+    ? crypto.randomUUID().replaceAll("-", "")
+    : `${Date.now()}${Math.random().toString(16).slice(2)}`;
+  const newId = `guest_${randomId}`;
+
+  localStorage.setItem(storageKey, newId);
+  return newId;
+}
+
+function getActiveParticipantId() {
+  return currentUser?.uid || participantId;
+}
+
+function getActiveParticipantName() {
+  return currentUser?.displayName || currentUser?.email || userName || "사용자";
+}
 
 function isKakaoInAppBrowser() {
   return /KAKAOTALK/i.test(navigator.userAgent);
@@ -260,7 +298,7 @@ function renderSummary() {
   selectedTimes.innerHTML = selectedTimeValues.length
     ? selectedTimeValues.map((time) => `<span class="time-chip">${time}</span>`).join("")
     : `<span class="empty-text">선택한 시간이 없어요.</span>`;
-  previewParticipantCount.textContent = selectedTimeValues.length ? "1명" : "0명";
+  previewParticipantCount.textContent = `${data.dateUserCounts[selectedDateKey] || (selectedTimeValues.length ? 1 : 0)}명`;
 }
 
 function renderSelectionList() {
@@ -293,6 +331,7 @@ async function loadRoomCalendarData(roomId) {
   data.dateUserCounts = {};
   selectedDateKey = "";
   selectedTimeValues = [];
+  const activeParticipantId = getActiveParticipantId();
 
   const applyScheduleSnapshot = (snapshot) => {
     snapshot.forEach((scheduleDoc) => {
@@ -301,16 +340,16 @@ async function loadRoomCalendarData(roomId) {
       const participants = schedule.participants || {};
       const participantEntries = Object.entries(participants);
       const timesForDate = Array.isArray(schedule.times) ? schedule.times : [];
-      const currentUserTimes = currentUser ? participants[currentUser.uid]?.times : null;
+      const activeParticipantTimes = activeParticipantId ? participants[activeParticipantId]?.times : null;
       const userCount = participantEntries.length || (timesForDate.length ? 1 : 0);
 
       if (dateKey && userCount) {
         data.dateUserCounts[dateKey] = Math.max(data.dateUserCounts[dateKey] || 0, userCount);
       }
 
-      if (dateKey && Array.isArray(currentUserTimes) && currentUserTimes.length) {
-        data.selections[dateKey] = currentUserTimes;
-      } else if (dateKey && timesForDate.length && (!schedule.updatedByUid || schedule.updatedByUid === currentUser?.uid)) {
+      if (dateKey && Array.isArray(activeParticipantTimes) && activeParticipantTimes.length) {
+        data.selections[dateKey] = activeParticipantTimes;
+      } else if (dateKey && timesForDate.length && (!schedule.updatedByUid || schedule.updatedByUid === activeParticipantId)) {
         data.selections[dateKey] = timesForDate;
       }
     });
@@ -431,6 +470,13 @@ async function saveSelection() {
     return;
   }
 
+  const activeParticipantId = getActiveParticipantId();
+
+  if (!activeRoomId || !activeParticipantId) {
+    alert("공유 링크로 접속한 뒤 이름을 입력해주세요.");
+    return;
+  }
+
   if (selectedTimeValues.length) {
     data.selections[selectedDateKey] = [...selectedTimeValues];
   } else {
@@ -438,27 +484,29 @@ async function saveSelection() {
   }
 
   try {
-    if (activeRoomId && currentUser) {
-      const scheduleRef = doc(db, "rooms", activeRoomId, "schedules", selectedDateKey);
+    const scheduleRef = doc(db, "rooms", activeRoomId, "schedules", selectedDateKey);
 
-      if (selectedTimeValues.length) {
-        await setDoc(scheduleRef, {
-          roomId: activeRoomId,
-          date: selectedDateKey,
-          participants: {
-            [currentUser.uid]: {
-              name: currentUser.displayName || currentUser.email || userName || "사용자",
-              times: [...selectedTimeValues],
-              updatedAt: serverTimestamp(),
-            },
+    if (selectedTimeValues.length) {
+      await setDoc(scheduleRef, {
+        roomId: activeRoomId,
+        date: selectedDateKey,
+        participants: {
+          [activeParticipantId]: {
+            name: getActiveParticipantName(),
+            times: [...selectedTimeValues],
+            updatedAt: serverTimestamp(),
           },
-          updatedAt: serverTimestamp(),
-          updatedByUid: currentUser?.uid || "",
-          updatedByName: currentUser?.displayName || currentUser?.email || userName || "사용자",
-        }, { merge: true });
-      } else {
+        },
+        updatedAt: serverTimestamp(),
+        updatedByUid: activeParticipantId,
+        updatedByName: getActiveParticipantName(),
+      }, { merge: true });
+    } else {
+      const existingSchedule = await getDoc(scheduleRef);
+
+      if (existingSchedule.exists()) {
         await updateDoc(scheduleRef, {
-          [`participants.${currentUser.uid}`]: deleteField(),
+          [`participants.${activeParticipantId}`]: deleteField(),
           updatedAt: serverTimestamp(),
         });
 
@@ -519,17 +567,48 @@ function hasFirebaseConfig() {
   return !Object.values(firebaseConfig).some((value) => value.startsWith("YOUR_"));
 }
 
+function setAdminControlsVisible(isVisible) {
+  myPageBtn.classList.toggle("is-hidden", !isVisible);
+  logoutBtn.classList.toggle("is-hidden", !isVisible);
+  copyLinkBtn.classList.toggle("is-hidden", !isVisible);
+}
+
+function showAdminLoginGate() {
+  authError.textContent = "";
+  adminLoginPanel.classList.remove("is-hidden");
+  participantNamePanel.classList.add("is-hidden");
+  authGate.classList.remove("is-hidden");
+}
+
+function showParticipantNameGate() {
+  authError.textContent = "";
+  adminLoginPanel.classList.add("is-hidden");
+  participantNamePanel.classList.remove("is-hidden");
+  authGate.classList.remove("is-hidden");
+  participantNameInput.focus();
+}
+
 function showSignedOut() {
   currentUser = null;
+  participantId = "";
+  userName = "";
   myRooms = [];
   renderRoomList();
   appShell.classList.add("is-hidden");
   myPageView.classList.add("is-hidden");
   schedulerView.classList.add("is-hidden");
-  authGate.classList.remove("is-hidden");
+  setAdminControlsVisible(false);
+
+  activeRoomId = getRoomIdFromUrl();
+  if (activeRoomId) {
+    showParticipantNameGate();
+  } else {
+    showAdminLoginGate();
+  }
 }
 
 async function showSignedIn(user) {
+  activeRoomId = getRoomIdFromUrl();
   currentUser = user;
   userName = user.displayName || user.email || "사용자";
   console.log("로그인 사용자 uid:", user.uid);
@@ -539,6 +618,7 @@ async function showSignedIn(user) {
   myPageName.textContent = userName;
   myPageEmail.textContent = user.email || "";
   profileAvatar.textContent = userName[0];
+  setAdminControlsVisible(true);
   authError.textContent = "";
   authGate.classList.add("is-hidden");
   appShell.classList.remove("is-hidden");
@@ -579,6 +659,7 @@ async function logout() {
 function showMyPageView() {
   activeRoomId = "";
   brandTitle.textContent = "모임 일정";
+  setAdminControlsVisible(true);
   data.selections = {};
   data.dateUserCounts = {};
   selectedDateKey = "";
@@ -597,6 +678,40 @@ function showMyPageView() {
 function showSchedulerView() {
   myPageView.classList.add("is-hidden");
   schedulerView.classList.remove("is-hidden");
+}
+
+async function startParticipantSession() {
+  const roomId = getRoomIdFromUrl();
+  const enteredName = participantNameInput.value.trim();
+
+  if (!roomId) {
+    alert("초대 링크로 접속해주세요.");
+    return;
+  }
+
+  if (!enteredName) {
+    alert("이름을 입력해주세요");
+    return;
+  }
+
+  currentUser = null;
+  activeRoomId = roomId;
+  participantId = ensureParticipantId(roomId);
+  userName = enteredName;
+  data.userName = userName;
+  signedUserName.textContent = userName;
+  profileAvatar.textContent = userName[0];
+  setAdminControlsVisible(false);
+
+  const canEnter = await joinRoomIfAvailable(roomId);
+
+  if (!canEnter) {
+    return;
+  }
+
+  authGate.classList.add("is-hidden");
+  appShell.classList.remove("is-hidden");
+  await openRoom(roomId, false);
 }
 
 async function createRoom() {
@@ -622,6 +737,7 @@ async function createRoom() {
       ownerUid: currentUser.uid,
       ownerName: currentUser.displayName || currentUser.email || "사용자",
       participantUids: [currentUser.uid],
+      participantIds: [],
       createdAt: serverTimestamp(),
     });
 
@@ -715,7 +831,18 @@ async function enterRoom(roomId) {
 async function openRoom(roomId, updateUrl = true) {
   activeRoomId = roomId;
   const roomSnapshot = await getDoc(doc(db, "rooms", roomId));
-  const roomTitle = roomSnapshot.exists() ? roomSnapshot.data().title : "";
+
+  if (!roomSnapshot.exists()) {
+    alert("존재하지 않는 모임이에요.");
+    if (currentUser) {
+      showMyPageView();
+    } else {
+      showSignedOut();
+    }
+    return;
+  }
+
+  const roomTitle = roomSnapshot.data().title || "";
 
   brandTitle.textContent = roomTitle || "모임 일정";
 
@@ -728,8 +855,10 @@ async function openRoom(roomId, updateUrl = true) {
 }
 
 async function joinRoomIfAvailable(roomId) {
-  if (!currentUser) {
-    alert("로그인 후 모임에 입장할 수 있어요.");
+  const activeParticipantId = getActiveParticipantId();
+
+  if (!activeParticipantId) {
+    alert("공유 링크로 접속한 뒤 이름을 입력해주세요.");
     return false;
   }
 
@@ -743,19 +872,27 @@ async function joinRoomIfAvailable(roomId) {
 
   const room = roomSnapshot.data();
   const participantUids = Array.isArray(room.participantUids) ? room.participantUids : [];
+  const participantIds = Array.isArray(room.participantIds) ? room.participantIds : [];
+  const totalParticipantCount = new Set([...participantUids, ...participantIds]).size;
 
-  if (participantUids.includes(currentUser.uid)) {
+  if (participantUids.includes(activeParticipantId) || participantIds.includes(activeParticipantId)) {
     return true;
   }
 
-  if (participantUids.length >= 50) {
+  if (totalParticipantCount >= 50) {
     alert("이 모임은 최대 50명까지 참여할 수 있어요");
     return false;
   }
 
-  await updateDoc(roomRef, {
-    participantUids: arrayUnion(currentUser.uid),
-  });
+  if (currentUser) {
+    await updateDoc(roomRef, {
+      participantUids: arrayUnion(activeParticipantId),
+    });
+  } else {
+    await updateDoc(roomRef, {
+      participantIds: arrayUnion(activeParticipantId),
+    });
+  }
 
   return true;
 }
@@ -772,6 +909,12 @@ function moveMonth(direction) {
 }
 
 googleLoginBtn.addEventListener("click", loginWithGoogle);
+participantStartBtn.addEventListener("click", startParticipantSession);
+participantNameInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    startParticipantSession();
+  }
+});
 logoutBtn.addEventListener("click", logout);
 createRoomBtn.addEventListener("click", createRoom);
 addRoomBtn.addEventListener("click", addRoom);

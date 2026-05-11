@@ -12,7 +12,15 @@
       <div class="browser-warning is-hidden" id="kakaoBrowserWarning">
         <p>Google 로그인은 카카오톡 브라우저에서 제한됩니다. 크롬으로 열어주세요.</p>
       </div>
-      <button class="primary-button" type="button" id="googleLoginBtn">Google로 로그인</button>
+      <div class="auth-mode" id="adminLoginPanel">
+        <h2>관리자 로그인</h2>
+        <button class="primary-button" type="button" id="googleLoginBtn">Google로 로그인</button>
+      </div>
+      <div class="auth-mode is-hidden" id="participantNamePanel">
+        <h2>참여자 이름</h2>
+        <input type="text" id="participantNameInput" placeholder="이름을 입력해주세요" autocomplete="name" />
+        <button class="primary-button" type="button" id="participantStartBtn">일정 선택 시작하기</button>
+      </div>
       <p class="auth-error" id="authError"></p>
     </div>
   </div>
@@ -45,7 +53,7 @@
 
         <div class="mypage-actions">
           <button class="primary-button" type="button" id="createRoomBtn">새 모임 만들기</button>
-          <button class="secondary-button" type="button" id="addRoomBtn">모임 추가하기</button>
+          <button class="secondary-button is-hidden" type="button" id="addRoomBtn">모임 추가하기</button>
         </div>
 
         <div class="room-list-block">
