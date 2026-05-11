@@ -671,8 +671,11 @@ svg {
 }
 
 .modal-card {
+  display: flex;
+  flex-direction: column;
   position: relative;
   width: min(590px, 100%);
+  max-height: min(760px, calc(100vh - 48px));
   padding: 28px;
   border-radius: 8px;
   background: var(--surface);
@@ -713,6 +716,12 @@ svg {
   font-size: 15px;
 }
 
+.modal-scroll-area {
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
 .time-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -744,6 +753,7 @@ svg {
   grid-template-columns: 1fr 1fr;
   gap: 16px;
   margin-top: 20px;
+  background: var(--surface);
 }
 
 .secondary-button,
@@ -853,6 +863,37 @@ svg {
     padding: 22px 18px;
   }
 
+  .modal-backdrop {
+    align-items: center;
+    padding: 16px;
+  }
+
+  .modal-card {
+    width: 90vw;
+    max-height: 86vh;
+    padding: 18px;
+  }
+
+  .modal-card h2 {
+    align-items: flex-start;
+    margin: 20px 0 18px;
+    padding-right: 36px;
+    font-size: 20px;
+  }
+
+  .modal-close {
+    top: 12px;
+    right: 12px;
+    width: 44px;
+    height: 44px;
+  }
+
+  .modal-scroll-area {
+    flex: 1;
+    padding-right: 4px;
+    overscroll-behavior: contain;
+  }
+
   .participant-row {
     grid-template-columns: 38px 1fr;
   }
@@ -875,9 +916,27 @@ svg {
 
   .time-grid {
     grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .time-option {
+    min-height: 48px;
+    padding: 0 10px;
   }
 
   .modal-actions {
+    position: sticky;
+    bottom: -18px;
     grid-template-columns: 1fr;
+    gap: 10px;
+    margin: 16px -18px -18px;
+    padding: 12px 18px 18px;
+    border-top: 1px solid var(--line);
+  }
+
+  .secondary-button,
+  .primary-button,
+  .danger-button {
+    min-height: 48px;
   }
 }
