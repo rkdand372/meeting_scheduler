@@ -74,6 +74,7 @@ const nextMonthBtn = document.querySelector("#nextMonthBtn");
 const selectedTimes = document.querySelector("#selectedTimes");
 const summaryTitle = document.querySelector("#summaryTitle");
 const previewParticipantCount = document.querySelector("#previewParticipantCount");
+const participantTimeList = document.querySelector("#participantTimeList");
 const timeModal = document.querySelector("#timeModal");
 const modalDate = document.querySelector("#modalDate");
 const timeGrid = document.querySelector("#timeGrid");
@@ -95,6 +96,7 @@ const data = {
   userName: "",
   selections: {},
   dateUserCounts: {},
+  dateParticipants: {},
 };
 
 const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
@@ -157,6 +159,15 @@ function getActiveParticipantId() {
 
 function getActiveParticipantName() {
   return currentUser?.displayName || currentUser?.email || userName || "사용자";
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 function isKakaoInAppBrowser() {
@@ -291,14 +302,33 @@ function renderSummary() {
     summaryTitle.textContent = "날짜를 선택해주세요";
     selectedTimes.innerHTML = `<span class="empty-text">시간을 선택하면 여기에 표시돼요.</span>`;
     previewParticipantCount.textContent = "0명";
+    participantTimeList.innerHTML = `<p class="empty-text">날짜를 선택하면 참가자별 시간이 표시돼요.</p>`;
     return;
   }
+
+  const dateParticipants = data.dateParticipants[selectedDateKey] || [];
 
   summaryTitle.textContent = getDateLabel(selectedDateKey);
   selectedTimes.innerHTML = selectedTimeValues.length
     ? selectedTimeValues.map((time) => `<span class="time-chip">${time}</span>`).join("")
     : `<span class="empty-text">선택한 시간이 없어요.</span>`;
   previewParticipantCount.textContent = `${data.dateUserCounts[selectedDateKey] || (selectedTimeValues.length ? 1 : 0)}명`;
+  participantTimeList.innerHTML = dateParticipants.length
+    ? dateParticipants
+        .map((participant) => {
+          const chips = participant.times
+            .map((time) => `<span class="time-chip">${escapeHtml(time)}</span>`)
+            .join("");
+
+          return `
+            <div class="participant-time-item">
+              <strong>${escapeHtml(participant.name)}</strong>
+              <div class="time-chip-row">${chips}</div>
+            </div>
+          `;
+        })
+        .join("")
+    : `<p class="empty-text">아직 이 날짜를 선택한 참가자가 없어요.</p>`;
 }
 
 function renderSelectionList() {
@@ -326,9 +356,10 @@ function renderSelectionList() {
     .join("");
 }
 
-async function loadRoomCalendarData(roomId) {
+async function loadRoomCalendarData(roomId, keepDateKey = "") {
   data.selections = {};
   data.dateUserCounts = {};
+  data.dateParticipants = {};
   selectedDateKey = "";
   selectedTimeValues = [];
   const activeParticipantId = getActiveParticipantId();
@@ -345,6 +376,34 @@ async function loadRoomCalendarData(roomId) {
 
       if (dateKey && userCount) {
         data.dateUserCounts[dateKey] = Math.max(data.dateUserCounts[dateKey] || 0, userCount);
+      }
+
+      if (dateKey && participantEntries.length) {
+        const participantsById = new Map((data.dateParticipants[dateKey] || []).map((participant) => [participant.id, participant]));
+
+        participantEntries.forEach(([participantIdKey, participant]) => {
+          const participantTimes = Array.isArray(participant.times) ? participant.times : [];
+
+          if (!participantTimes.length) {
+            return;
+          }
+
+          participantsById.set(participantIdKey, {
+            id: participantIdKey,
+            name: participant.name || "이름 없음",
+            times: participantTimes,
+          });
+        });
+
+        data.dateParticipants[dateKey] = [...participantsById.values()].sort((a, b) => a.name.localeCompare(b.name, "ko"));
+      } else if (dateKey && timesForDate.length) {
+        data.dateParticipants[dateKey] = [
+          {
+            id: schedule.updatedByUid || "legacy",
+            name: schedule.updatedByName || "참가자",
+            times: timesForDate,
+          },
+        ];
       }
 
       if (dateKey && Array.isArray(activeParticipantTimes) && activeParticipantTimes.length) {
@@ -370,6 +429,11 @@ async function loadRoomCalendarData(roomId) {
     applyScheduleSnapshot(topLevelSnapshot);
   } catch (error) {
     console.error(error);
+  }
+
+  if (keepDateKey) {
+    selectedDateKey = keepDateKey;
+    selectedTimeValues = [...(data.selections[keepDateKey] || [])];
   }
 
   renderCalendar();
@@ -520,7 +584,7 @@ async function saveSelection() {
     }
 
     if (activeRoomId) {
-      await loadRoomCalendarData(activeRoomId);
+      await loadRoomCalendarData(activeRoomId, selectedDateKey);
     }
     renderCalendar();
     renderSummary();
@@ -662,6 +726,7 @@ function showMyPageView() {
   setAdminControlsVisible(true);
   data.selections = {};
   data.dateUserCounts = {};
+  data.dateParticipants = {};
   selectedDateKey = "";
   selectedTimeValues = [];
   const pageUrl = new URL(window.location.href);
