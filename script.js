@@ -52,6 +52,7 @@ const authGate = document.querySelector("#authGate");
 const googleLoginBtn = document.querySelector("#googleLoginBtn");
 const kakaoBrowserWarning = document.querySelector("#kakaoBrowserWarning");
 const logoutBtn = document.querySelector("#logoutBtn");
+const brandTitle = document.querySelector("#brandTitle");
 const createRoomBtn = document.querySelector("#createRoomBtn");
 const addRoomBtn = document.querySelector("#addRoomBtn");
 const myPageBtn = document.querySelector("#myPageBtn");
@@ -489,6 +490,31 @@ function showToast(message) {
   window.setTimeout(() => toast.classList.remove("is-visible"), 1800);
 }
 
+function getRoomInviteUrl(roomId) {
+  const roomUrl = new URL(window.location.pathname, window.location.origin);
+
+  roomUrl.searchParams.set("room", roomId);
+  return roomUrl.toString();
+}
+
+async function copyText(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  textarea.remove();
+}
+
 function hasFirebaseConfig() {
   return !Object.values(firebaseConfig).some((value) => value.startsWith("YOUR_"));
 }
@@ -552,6 +578,7 @@ async function logout() {
 
 function showMyPageView() {
   activeRoomId = "";
+  brandTitle.textContent = "모임 일정";
   data.selections = {};
   data.dateUserCounts = {};
   selectedDateKey = "";
@@ -687,6 +714,10 @@ async function enterRoom(roomId) {
 
 async function openRoom(roomId, updateUrl = true) {
   activeRoomId = roomId;
+  const roomSnapshot = await getDoc(doc(db, "rooms", roomId));
+  const roomTitle = roomSnapshot.exists() ? roomSnapshot.data().title : "";
+
+  brandTitle.textContent = roomTitle || "모임 일정";
 
   if (updateUrl) {
     window.history.pushState(null, "", "?room=" + roomId);
@@ -763,15 +794,13 @@ copyLinkBtn.addEventListener("click", async () => {
     return;
   }
 
-  const roomUrl = new URL(window.location.href);
-
-  roomUrl.searchParams.set("room", activeRoomId);
+  const inviteUrl = getRoomInviteUrl(activeRoomId);
 
   try {
-    await navigator.clipboard.writeText(roomUrl.toString());
+    await copyText(inviteUrl);
     showToast("초대 링크를 복사했어요");
   } catch {
-    showToast("현재 주소를 복사해 초대할 수 있어요");
+    showToast("링크 복사에 실패했어요");
   }
 });
 
