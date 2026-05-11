@@ -50,6 +50,8 @@ const db = getFirestore(firebaseApp);
 const appShell = document.querySelector("#appShell");
 const authGate = document.querySelector("#authGate");
 const googleLoginBtn = document.querySelector("#googleLoginBtn");
+const kakaoBrowserWarning = document.querySelector("#kakaoBrowserWarning");
+const openChromeBtn = document.querySelector("#openChromeBtn");
 const logoutBtn = document.querySelector("#logoutBtn");
 const createRoomBtn = document.querySelector("#createRoomBtn");
 const addRoomBtn = document.querySelector("#addRoomBtn");
@@ -118,6 +120,22 @@ let displayedMonthOffset = 0;
 let selectedDateKey = "";
 let selectedTimeValues = [];
 let isEditing = false;
+
+function isKakaoInAppBrowser() {
+  return /KAKAOTALK/i.test(navigator.userAgent);
+}
+
+function showKakaoBrowserGuideIfNeeded() {
+  if (!isKakaoInAppBrowser()) {
+    return;
+  }
+
+  kakaoBrowserWarning.classList.remove("is-hidden");
+}
+
+function openCurrentUrlExternally() {
+  window.open(window.location.href, "_blank", "noopener,noreferrer");
+}
 
 function getDisplayedMonth() {
   return new Date(baseMonth.getFullYear(), baseMonth.getMonth() + displayedMonthOffset, 1);
@@ -728,6 +746,7 @@ function moveMonth(direction) {
 }
 
 googleLoginBtn.addEventListener("click", loginWithGoogle);
+openChromeBtn.addEventListener("click", openCurrentUrlExternally);
 logoutBtn.addEventListener("click", logout);
 createRoomBtn.addEventListener("click", createRoom);
 addRoomBtn.addEventListener("click", addRoom);
@@ -786,3 +805,4 @@ onAuthStateChanged(auth, (user) => {
 renderCalendar();
 renderSummary();
 renderSelectionList();
+showKakaoBrowserGuideIfNeeded();
