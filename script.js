@@ -1,10 +1,56 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import {
+  getAnalytics,
+  isSupported,
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-analytics.js";
+import {
+  GoogleAuthProvider,
+  getAuth,
+  onAuthStateChanged,
+  signInWithPopup,
+  signOut,
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import {
+  collection,
+  doc,
+  getFirestore,
+  serverTimestamp,
+  setDoc,
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAZR277ngNy2xgBBHLTp9aQs6AEyGXYYnU",
+  authDomain: "meeting-scheduler-3f30e.firebaseapp.com",
+  projectId: "meeting-scheduler-3f30e",
+  storageBucket: "meeting-scheduler-3f30e.firebasestorage.app",
+  messagingSenderId: "159393450808",
+  appId: "1:159393450808:web:b19d136900df08f4830fcd",
+  measurementId: "G-0JDX0FYJDV",
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+isSupported().then((supported) => {
+  if (supported) {
+    getAnalytics(firebaseApp);
+  }
+});
+const auth = getAuth(firebaseApp);
+const googleProvider = new GoogleAuthProvider();
+const db = getFirestore(firebaseApp);
+
+const appShell = document.querySelector("#appShell");
+const authGate = document.querySelector("#authGate");
+const googleLoginBtn = document.querySelector("#googleLoginBtn");
+const logoutBtn = document.querySelector("#logoutBtn");
+const createRoomBtn = document.querySelector("#createRoomBtn");
+const signedUserName = document.querySelector("#signedUserName");
+const myPageName = document.querySelector("#myPageName");
+const myPageEmail = document.querySelector("#myPageEmail");
+const authError = document.querySelector("#authError");
 const calendarGrid = document.querySelector("#calendarGrid");
 const calendarTitle = document.querySelector("#calendarTitle");
 const prevMonthBtn = document.querySelector("#prevMonthBtn");
 const nextMonthBtn = document.querySelector("#nextMonthBtn");
-const nameModal = document.querySelector("#nameModal");
-const nameInput = document.querySelector("#nameInput");
-const nameStartBtn = document.querySelector("#nameStartBtn");
 const selectedTimes = document.querySelector("#selectedTimes");
 const summaryTitle = document.querySelector("#summaryTitle");
 const previewParticipantCount = document.querySelector("#previewParticipantCount");
@@ -20,6 +66,7 @@ const mySelectionList = document.querySelector("#mySelectionList");
 const profileAvatar = document.querySelector("#profileAvatar");
 
 let userName = "";
+let currentUser = null;
 
 const data = {
   userName: "",
@@ -28,6 +75,7 @@ const data = {
 
 const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
 const times = [
+  "ALL",
   "09:00",
   "10:00",
   "11:00",
@@ -203,9 +251,15 @@ function renderTimeOptions() {
     button.textContent = time;
     button.addEventListener("click", () => {
       const exists = selectedTimeValues.includes(time);
-      selectedTimeValues = exists
-        ? selectedTimeValues.filter((selectedTime) => selectedTime !== time)
-        : [...selectedTimeValues, time].sort();
+
+      if (time === "ALL") {
+        selectedTimeValues = exists ? [] : ["ALL"];
+      } else {
+        selectedTimeValues = exists
+          ? selectedTimeValues.filter((selectedTime) => selectedTime !== time)
+          : [...selectedTimeValues.filter((selectedTime) => selectedTime !== "ALL"), time].sort();
+      }
+
       renderTimeOptions();
       renderSummary();
     });
@@ -277,19 +331,79 @@ function showToast(message) {
   window.setTimeout(() => toast.classList.remove("is-visible"), 1800);
 }
 
-function startWithName() {
-  const enteredName = nameInput.value.trim();
+function hasFirebaseConfig() {
+  return !Object.values(firebaseConfig).some((value) => value.startsWith("YOUR_"));
+}
 
-  if (!enteredName) {
-    alert("이름을 입력해주세요");
-    nameInput.focus();
+function showSignedOut() {
+  currentUser = null;
+  appShell.classList.add("is-hidden");
+  authGate.classList.remove("is-hidden");
+}
+
+function showSignedIn(user) {
+  currentUser = user;
+  userName = user.displayName || user.email || "사용자";
+  data.userName = userName;
+  signedUserName.textContent = userName;
+  myPageName.textContent = userName;
+  myPageEmail.textContent = user.email || "";
+  profileAvatar.textContent = userName[0];
+  authError.textContent = "";
+  authGate.classList.add("is-hidden");
+  appShell.classList.remove("is-hidden");
+}
+
+async function loginWithGoogle() {
+  authError.textContent = "";
+
+  if (!hasFirebaseConfig()) {
+    authError.textContent = "script.js의 firebaseConfig 값을 먼저 입력해주세요.";
     return;
   }
 
-  userName = enteredName;
-  data.userName = enteredName;
-  profileAvatar.textContent = enteredName[0];
-  nameModal.classList.add("is-hidden");
+  try {
+    await signInWithPopup(auth, googleProvider);
+  } catch (error) {
+    authError.textContent = "Google 로그인에 실패했어요. Firebase 설정을 확인해주세요.";
+    console.error(error);
+  }
+}
+
+async function logout() {
+  await signOut(auth);
+}
+
+async function createRoom() {
+  if (!currentUser) {
+    alert("로그인 후 모임을 만들 수 있어요.");
+    return;
+  }
+
+  const title = prompt("모임 이름을 입력해주세요");
+
+  if (!title?.trim()) {
+    alert("모임 이름을 입력해주세요");
+    return;
+  }
+
+  try {
+    const roomRef = doc(collection(db, "rooms"));
+    const roomId = roomRef.id;
+
+    await setDoc(roomRef, {
+      roomId,
+      title: title.trim(),
+      ownerUid: currentUser.uid,
+      ownerName: currentUser.displayName || currentUser.email || "사용자",
+      createdAt: serverTimestamp(),
+    });
+
+    showToast("새 모임을 만들었어요");
+  } catch (error) {
+    console.error(error);
+    alert("모임 생성에 실패했어요. Firestore 설정을 확인해주세요.");
+  }
 }
 
 function moveMonth(direction) {
@@ -303,6 +417,9 @@ function moveMonth(direction) {
   renderCalendar();
 }
 
+googleLoginBtn.addEventListener("click", loginWithGoogle);
+logoutBtn.addEventListener("click", logout);
+createRoomBtn.addEventListener("click", createRoom);
 prevMonthBtn.addEventListener("click", () => moveMonth(-1));
 nextMonthBtn.addEventListener("click", () => moveMonth(1));
 closeModalBtn.addEventListener("click", closeModal);
@@ -326,10 +443,11 @@ copyLinkBtn.addEventListener("click", async () => {
   }
 });
 
-nameStartBtn.addEventListener("click", startWithName);
-nameInput.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") {
-    startWithName();
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    showSignedIn(user);
+  } else {
+    showSignedOut();
   }
 });
 

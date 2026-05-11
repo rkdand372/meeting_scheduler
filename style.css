@@ -58,6 +58,10 @@ svg {
   display: none;
 }
 
+.app-shell.is-hidden {
+  display: none;
+}
+
 .name-card {
   display: grid;
   gap: 14px;
@@ -86,6 +90,22 @@ svg {
 .name-card input:focus {
   border-color: var(--green);
   box-shadow: 0 0 0 3px rgba(49, 148, 71, 0.14);
+}
+
+.auth-error {
+  margin: 0;
+  color: #c0392b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.signed-user {
+  max-width: 180px;
+  overflow: hidden;
+  color: #14202a;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .app-shell {
@@ -335,6 +355,14 @@ svg {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
+}
+
+.my-page {
+  margin-top: 24px;
+}
+
+.my-page p {
+  margin: 8px 0 0;
 }
 
 .participants-card h2,
