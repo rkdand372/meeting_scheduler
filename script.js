@@ -13,12 +13,15 @@ import {
 import {
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getFirestore,
+  getDoc,
   getDocs,
   query,
   serverTimestamp,
   setDoc,
+  updateDoc,
   where,
   writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
@@ -83,6 +86,7 @@ let activeRoomId = new URLSearchParams(window.location.search).get("room") || ""
 const data = {
   userName: "",
   selections: {},
+  dateUserCounts: {},
 };
 
 const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
@@ -186,13 +190,13 @@ function renderCalendar() {
     calendarGrid.appendChild(label);
 
     row.days.forEach(({ date, dateKey, isCurrentMonth }) => {
-      const hasSavedSelection = Boolean(data.selections[dateKey]?.length);
+      const userCount = data.dateUserCounts[dateKey] || 0;
       const button = document.createElement("button");
 
       button.type = "button";
       button.className = [
         "day-cell",
-        isCurrentMonth && hasSavedSelection ? "level-3" : "",
+        isCurrentMonth ? getCountLevelClass(userCount) : "",
         !isCurrentMonth ? "is-muted" : "",
         dateKey === selectedDateKey ? "is-selected" : "",
       ]
@@ -211,6 +215,22 @@ function renderCalendar() {
   });
 
   updateMonthControls();
+}
+
+function getCountLevelClass(userCount) {
+  if (userCount >= 4) {
+    return "level-3";
+  }
+
+  if (userCount >= 2) {
+    return "level-2";
+  }
+
+  if (userCount === 1) {
+    return "level-1";
+  }
+
+  return "";
 }
 
 function renderSummary() {
@@ -255,6 +275,7 @@ function renderSelectionList() {
 
 async function loadRoomCalendarData(roomId) {
   data.selections = {};
+  data.dateUserCounts = {};
   selectedDateKey = "";
   selectedTimeValues = [];
 
@@ -262,9 +283,19 @@ async function loadRoomCalendarData(roomId) {
     snapshot.forEach((scheduleDoc) => {
       const schedule = scheduleDoc.data();
       const dateKey = schedule.date || scheduleDoc.id;
+      const participants = schedule.participants || {};
+      const participantEntries = Object.entries(participants);
       const timesForDate = Array.isArray(schedule.times) ? schedule.times : [];
+      const currentUserTimes = currentUser ? participants[currentUser.uid]?.times : null;
+      const userCount = participantEntries.length || (timesForDate.length ? 1 : 0);
 
-      if (dateKey && timesForDate.length) {
+      if (dateKey && userCount) {
+        data.dateUserCounts[dateKey] = Math.max(data.dateUserCounts[dateKey] || 0, userCount);
+      }
+
+      if (dateKey && Array.isArray(currentUserTimes) && currentUserTimes.length) {
+        data.selections[dateKey] = currentUserTimes;
+      } else if (dateKey && timesForDate.length && (!schedule.updatedByUid || schedule.updatedByUid === currentUser?.uid)) {
         data.selections[dateKey] = timesForDate;
       }
     });
@@ -392,23 +423,42 @@ async function saveSelection() {
   }
 
   try {
-    if (activeRoomId) {
+    if (activeRoomId && currentUser) {
       const scheduleRef = doc(db, "rooms", activeRoomId, "schedules", selectedDateKey);
 
       if (selectedTimeValues.length) {
         await setDoc(scheduleRef, {
           roomId: activeRoomId,
           date: selectedDateKey,
-          times: [...selectedTimeValues],
+          participants: {
+            [currentUser.uid]: {
+              name: currentUser.displayName || currentUser.email || userName || "사용자",
+              times: [...selectedTimeValues],
+              updatedAt: serverTimestamp(),
+            },
+          },
           updatedAt: serverTimestamp(),
           updatedByUid: currentUser?.uid || "",
           updatedByName: currentUser?.displayName || currentUser?.email || userName || "사용자",
-        });
+        }, { merge: true });
       } else {
-        await deleteDoc(scheduleRef);
+        await updateDoc(scheduleRef, {
+          [`participants.${currentUser.uid}`]: deleteField(),
+          updatedAt: serverTimestamp(),
+        });
+
+        const scheduleSnapshot = await getDoc(scheduleRef);
+        const participants = scheduleSnapshot.data()?.participants || {};
+
+        if (!Object.keys(participants).length) {
+          await deleteDoc(scheduleRef);
+        }
       }
     }
 
+    if (activeRoomId) {
+      await loadRoomCalendarData(activeRoomId);
+    }
     renderCalendar();
     renderSummary();
     renderSelectionList();
@@ -483,6 +533,7 @@ async function logout() {
 function showMyPageView() {
   activeRoomId = "";
   data.selections = {};
+  data.dateUserCounts = {};
   selectedDateKey = "";
   selectedTimeValues = [];
   const pageUrl = new URL(window.location.href);

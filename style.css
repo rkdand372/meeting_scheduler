@@ -315,12 +315,12 @@ svg {
 }
 
 .day-cell.level-2 {
-  background: var(--green-2);
+  background: var(--green-3);
 }
 
 .day-cell.level-3 {
-  color: #07120b;
-  background: var(--green-3);
+  color: #fff;
+  background: var(--green);
 }
 
 .day-cell.is-selected {
@@ -360,7 +360,7 @@ svg {
 }
 
 .level-two {
-  background: var(--green-2);
+  background: var(--green-3);
 }
 
 .level-all {
