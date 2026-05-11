@@ -474,7 +474,10 @@ async function deleteRoom(roomId) {
 }
 
 function enterRoom(roomId) {
-  showToast(`모임 ${roomId}에 입장했어요`);
+  const roomUrl = new URL(window.location.href);
+
+  roomUrl.searchParams.set("room", roomId);
+  window.location.href = roomUrl.toString();
 }
 
 function moveMonth(direction) {
