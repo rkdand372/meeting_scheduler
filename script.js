@@ -97,6 +97,7 @@ const data = {
   selections: {},
   dateUserCounts: {},
   dateParticipants: {},
+  roomParticipantIds: new Set(),
 };
 
 const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
@@ -170,6 +171,10 @@ function getRoomParticipantCount(room) {
 
 function updateAttendeeCount(count = 0) {
   attendeeCountValue.textContent = String(count);
+}
+
+function updateScheduleParticipantCount() {
+  updateAttendeeCount(data.roomParticipantIds.size);
 }
 
 function escapeHtml(value) {
@@ -367,6 +372,7 @@ async function loadRoomCalendarData(roomId, keepDateKey = "") {
   data.selections = {};
   data.dateUserCounts = {};
   data.dateParticipants = {};
+  data.roomParticipantIds = new Set();
   selectedDateKey = "";
   selectedTimeValues = [];
   const activeParticipantId = getActiveParticipantId();
@@ -400,6 +406,7 @@ async function loadRoomCalendarData(roomId, keepDateKey = "") {
             name: participant.name || "이름 없음",
             times: participantTimes,
           });
+          data.roomParticipantIds.add(participantIdKey);
         });
 
         data.dateParticipants[dateKey] = [...participantsById.values()].sort((a, b) => a.name.localeCompare(b.name, "ko"));
@@ -429,15 +436,6 @@ async function loadRoomCalendarData(roomId, keepDateKey = "") {
     console.error(error);
   }
 
-  try {
-    const topLevelSchedulesQuery = query(collection(db, "schedules"), where("roomId", "==", roomId));
-    const topLevelSnapshot = await getDocs(topLevelSchedulesQuery);
-
-    applyScheduleSnapshot(topLevelSnapshot);
-  } catch (error) {
-    console.error(error);
-  }
-
   if (keepDateKey) {
     selectedDateKey = keepDateKey;
     selectedTimeValues = [...(data.selections[keepDateKey] || [])];
@@ -446,6 +444,7 @@ async function loadRoomCalendarData(roomId, keepDateKey = "") {
   renderCalendar();
   renderSummary();
   renderSelectionList();
+  updateScheduleParticipantCount();
 }
 
 function renderRoomList() {
@@ -545,6 +544,11 @@ async function saveSelection() {
 
   if (!activeRoomId || !activeParticipantId) {
     alert("공유 링크로 접속한 뒤 이름을 입력해주세요.");
+    return;
+  }
+
+  if (selectedTimeValues.length && !data.roomParticipantIds.has(activeParticipantId) && data.roomParticipantIds.size >= 50) {
+    alert("이 모임은 최대 50명까지 참여할 수 있어요");
     return;
   }
 
@@ -775,12 +779,8 @@ async function startParticipantSession() {
   signedUserName.textContent = userName;
   profileAvatar.textContent = userName[0];
   setAdminControlsVisible(false);
-
-  const canEnter = await joinRoomIfAvailable(roomId);
-
-  if (!canEnter) {
-    return;
-  }
+  brandTitle.textContent = "모임 일정";
+  updateAttendeeCount(0);
 
   authGate.classList.add("is-hidden");
   appShell.classList.remove("is-hidden");
@@ -874,16 +874,9 @@ async function deleteRoom(roomId) {
 async function deleteRoomSchedules(roomId) {
   const batch = writeBatch(db);
   const subcollectionSnapshot = await getDocs(collection(db, "rooms", roomId, "schedules"));
-  const topLevelSchedulesQuery = query(collection(db, "schedules"), where("roomId", "==", roomId));
-  const topLevelSnapshot = await getDocs(topLevelSchedulesQuery);
   let deleteCount = 0;
 
   subcollectionSnapshot.forEach((scheduleDoc) => {
-    batch.delete(scheduleDoc.ref);
-    deleteCount += 1;
-  });
-
-  topLevelSnapshot.forEach((scheduleDoc) => {
     batch.delete(scheduleDoc.ref);
     deleteCount += 1;
   });
@@ -903,22 +896,23 @@ async function enterRoom(roomId) {
 
 async function openRoom(roomId, updateUrl = true) {
   activeRoomId = roomId;
-  const roomSnapshot = await getDoc(doc(db, "rooms", roomId));
 
-  if (!roomSnapshot.exists()) {
-    alert("존재하지 않는 모임이에요.");
-    if (currentUser) {
+  if (currentUser) {
+    const roomSnapshot = await getDoc(doc(db, "rooms", roomId));
+
+    if (!roomSnapshot.exists()) {
+      alert("존재하지 않는 모임이에요.");
       showMyPageView();
-    } else {
-      showSignedOut();
+      return;
     }
-    return;
+
+    const roomTitle = roomSnapshot.data().title || "";
+
+    brandTitle.textContent = roomTitle || "모임 일정";
+    updateAttendeeCount(getRoomParticipantCount(roomSnapshot.data()));
+  } else {
+    brandTitle.textContent = "모임 일정";
   }
-
-  const roomTitle = roomSnapshot.data().title || "";
-
-  brandTitle.textContent = roomTitle || "모임 일정";
-  updateAttendeeCount(getRoomParticipantCount(roomSnapshot.data()));
 
   if (updateUrl) {
     window.history.pushState(null, "", "?room=" + roomId);
@@ -929,13 +923,12 @@ async function openRoom(roomId, updateUrl = true) {
 }
 
 async function joinRoomIfAvailable(roomId) {
-  const activeParticipantId = getActiveParticipantId();
-
-  if (!activeParticipantId) {
-    alert("공유 링크로 접속한 뒤 이름을 입력해주세요.");
+  if (!currentUser) {
+    alert("관리자 로그인 후 입장할 수 있어요.");
     return false;
   }
 
+  const activeParticipantId = currentUser.uid;
   const roomRef = doc(db, "rooms", roomId);
   const roomSnapshot = await getDoc(roomRef);
 
@@ -958,15 +951,9 @@ async function joinRoomIfAvailable(roomId) {
     return false;
   }
 
-  if (currentUser) {
-    await updateDoc(roomRef, {
-      participantUids: arrayUnion(activeParticipantId),
-    });
-  } else {
-    await updateDoc(roomRef, {
-      participantIds: arrayUnion(activeParticipantId),
-    });
-  }
+  await updateDoc(roomRef, {
+    participantUids: arrayUnion(activeParticipantId),
+  });
 
   updateAttendeeCount(totalParticipantCount + 1);
   return true;

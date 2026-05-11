@@ -1,0 +1,68 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isRoomOwner(roomId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/rooms/$(roomId))
+        && get(/databases/$(database)/documents/rooms/$(roomId)).data.ownerUid == request.auth.uid;
+    }
+
+    function isValidRoomCreate() {
+      return signedIn()
+        && request.resource.data.roomId is string
+        && request.resource.data.title is string
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerName is string
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.participantUids is list
+        && request.auth.uid in request.resource.data.participantUids
+        && request.resource.data.keys().hasOnly([
+          "roomId",
+          "title",
+          "ownerUid",
+          "ownerName",
+          "participantUids",
+          "participantIds",
+          "createdAt"
+        ]);
+    }
+
+    function scheduleHasValidShape(roomId, dateId) {
+      return request.resource.data.roomId == roomId
+        && request.resource.data.date == dateId
+        && request.resource.data.participants is map
+        && request.resource.data.updatedByUid is string
+        && request.resource.data.updatedByName is string
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.keys().hasOnly([
+          "roomId",
+          "date",
+          "participants",
+          "updatedAt",
+          "updatedByUid",
+          "updatedByName"
+        ]);
+    }
+
+    match /rooms/{roomId} {
+      allow create: if isValidRoomCreate();
+      allow read, update, delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
+
+      match /schedules/{dateId} {
+        allow read: if exists(/databases/$(database)/documents/rooms/$(roomId));
+        allow create, update: if exists(/databases/$(database)/documents/rooms/$(roomId))
+          && scheduleHasValidShape(roomId, dateId);
+        allow delete: if exists(/databases/$(database)/documents/rooms/$(roomId));
+      }
+    }
+
+    match /schedules/{scheduleId} {
+      allow read, write: if false;
+    }
+  }
+}
