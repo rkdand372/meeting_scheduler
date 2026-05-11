@@ -71,7 +71,6 @@ const calendarGrid = document.querySelector("#calendarGrid");
 const calendarTitle = document.querySelector("#calendarTitle");
 const prevMonthBtn = document.querySelector("#prevMonthBtn");
 const nextMonthBtn = document.querySelector("#nextMonthBtn");
-const selectedTimes = document.querySelector("#selectedTimes");
 const summaryTitle = document.querySelector("#summaryTitle");
 const previewParticipantCount = document.querySelector("#previewParticipantCount");
 const attendeeCountValue = document.querySelector("#attendeeCountValue");
@@ -312,7 +311,6 @@ function getCountLevelClass(userCount) {
 function renderSummary() {
   if (!selectedDateKey) {
     summaryTitle.textContent = "날짜를 선택해주세요";
-    selectedTimes.innerHTML = `<span class="empty-text">시간을 선택하면 여기에 표시돼요.</span>`;
     previewParticipantCount.textContent = "0명";
     participantTimeList.innerHTML = `<p class="empty-text">날짜를 선택하면 참가자별 시간이 표시돼요.</p>`;
     return;
@@ -321,9 +319,6 @@ function renderSummary() {
   const dateParticipants = data.dateParticipants[selectedDateKey] || [];
 
   summaryTitle.textContent = getDateLabel(selectedDateKey);
-  selectedTimes.innerHTML = selectedTimeValues.length
-    ? selectedTimeValues.map((time) => `<span class="time-chip">${time}</span>`).join("")
-    : `<span class="empty-text">선택한 시간이 없어요.</span>`;
   previewParticipantCount.textContent = `${data.dateUserCounts[selectedDateKey] || (selectedTimeValues.length ? 1 : 0)}명`;
   participantTimeList.innerHTML = dateParticipants.length
     ? dateParticipants

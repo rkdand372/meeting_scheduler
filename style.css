@@ -593,14 +593,12 @@ svg {
   font-size: 22px;
 }
 
-.selected-times,
 .preview-count,
 .participant-times,
 .availability-list {
   margin-top: 28px;
 }
 
-.selected-times h3,
 .preview-count h3,
 .participant-times h3,
 .availability-list h3 {
