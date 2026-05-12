@@ -191,11 +191,9 @@ function isKakaoInAppBrowser() {
 }
 
 function showKakaoBrowserGuideIfNeeded() {
-  if (!isKakaoInAppBrowser()) {
-    return;
-  }
+  const shouldShowWarning = isKakaoInAppBrowser() && !getRoomIdFromUrl();
 
-  kakaoBrowserWarning.classList.remove("is-hidden");
+  kakaoBrowserWarning.classList.toggle("is-hidden", !shouldShowWarning);
 }
 
 function getDisplayedMonth() {
@@ -653,12 +651,14 @@ function showAdminLoginGate() {
   adminLoginPanel.classList.remove("is-hidden");
   participantNamePanel.classList.add("is-hidden");
   authGate.classList.remove("is-hidden");
+  showKakaoBrowserGuideIfNeeded();
 }
 
 function showParticipantNameGate() {
   authError.textContent = "";
   adminLoginPanel.classList.add("is-hidden");
   participantNamePanel.classList.remove("is-hidden");
+  kakaoBrowserWarning.classList.add("is-hidden");
   authGate.classList.remove("is-hidden");
   participantNameInput.focus();
 }
