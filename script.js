@@ -62,6 +62,8 @@ const addRoomBtn = document.querySelector("#addRoomBtn");
 const myPageBtn = document.querySelector("#myPageBtn");
 const myPageView = document.querySelector("#myPageView");
 const schedulerView = document.querySelector("#schedulerView");
+const privacyView = document.querySelector("#privacyView");
+const termsView = document.querySelector("#termsView");
 const signedUserName = document.querySelector("#signedUserName");
 const myPageName = document.querySelector("#myPageName");
 const myPageEmail = document.querySelector("#myPageEmail");
@@ -85,12 +87,18 @@ const copyLinkBtn = document.querySelector("#copyLinkBtn");
 const toast = document.querySelector("#toast");
 const mySelectionList = document.querySelector("#mySelectionList");
 const profileAvatar = document.querySelector("#profileAvatar");
+const privacyPolicyLink = document.querySelector("#privacyPolicyLink");
+const privacyBackBtn = document.querySelector("#privacyBackBtn");
+const termsGuideLink = document.querySelector("#termsGuideLink");
+const termsBackBtn = document.querySelector("#termsBackBtn");
 
 let userName = "";
 let currentUser = null;
 let participantId = "";
 let myRooms = [];
 let activeRoomId = new URLSearchParams(window.location.search).get("room") || "";
+let viewBeforeInfoPage = "mypage";
+let brandTitleBeforeInfoPage = "모임 일정";
 
 const data = {
   userName: "",
@@ -672,6 +680,8 @@ function showSignedOut() {
   appShell.classList.add("is-hidden");
   myPageView.classList.add("is-hidden");
   schedulerView.classList.add("is-hidden");
+  privacyView.classList.add("is-hidden");
+  termsView.classList.add("is-hidden");
   setAdminControlsVisible(false);
 
   activeRoomId = getRoomIdFromUrl();
@@ -750,11 +760,45 @@ function showMyPageView() {
   renderSelectionList();
   myPageView.classList.remove("is-hidden");
   schedulerView.classList.add("is-hidden");
+  privacyView.classList.add("is-hidden");
+  termsView.classList.add("is-hidden");
 }
 
 function showSchedulerView() {
   myPageView.classList.add("is-hidden");
   schedulerView.classList.remove("is-hidden");
+  privacyView.classList.add("is-hidden");
+  termsView.classList.add("is-hidden");
+}
+
+function showPrivacyPolicyView() {
+  showInfoPage("개인정보 처리방침", privacyView);
+}
+
+function showTermsGuideView() {
+  showInfoPage("이용안내", termsView);
+}
+
+function showInfoPage(title, targetView) {
+  viewBeforeInfoPage = schedulerView.classList.contains("is-hidden") ? "mypage" : "scheduler";
+  brandTitleBeforeInfoPage = brandTitle.textContent;
+  brandTitle.textContent = title;
+  myPageView.classList.add("is-hidden");
+  schedulerView.classList.add("is-hidden");
+  privacyView.classList.add("is-hidden");
+  termsView.classList.add("is-hidden");
+  targetView.classList.remove("is-hidden");
+}
+
+function goBackFromInfoPage() {
+  brandTitle.textContent = brandTitleBeforeInfoPage;
+
+  if (viewBeforeInfoPage === "scheduler") {
+    showSchedulerView();
+    return;
+  }
+
+  showMyPageView();
 }
 
 async function startParticipantSession() {
@@ -981,6 +1025,16 @@ logoutBtn.addEventListener("click", logout);
 createRoomBtn.addEventListener("click", createRoom);
 addRoomBtn.addEventListener("click", addRoom);
 myPageBtn.addEventListener("click", showMyPageView);
+privacyPolicyLink.addEventListener("click", (event) => {
+  event.preventDefault();
+  showPrivacyPolicyView();
+});
+privacyBackBtn.addEventListener("click", goBackFromInfoPage);
+termsGuideLink.addEventListener("click", (event) => {
+  event.preventDefault();
+  showTermsGuideView();
+});
+termsBackBtn.addEventListener("click", goBackFromInfoPage);
 prevMonthBtn.addEventListener("click", () => moveMonth(-1));
 nextMonthBtn.addEventListener("click", () => moveMonth(1));
 closeModalBtn.addEventListener("click", closeModal);

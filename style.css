@@ -67,6 +67,8 @@ svg {
 }
 
 .mypage-view.is-hidden,
+.privacy-view.is-hidden,
+.terms-view.is-hidden,
 .workspace.is-hidden {
   display: none;
 }
@@ -238,12 +240,16 @@ svg {
   min-height: calc(100vh - 106px);
 }
 
-.mypage-view {
+.mypage-view,
+.privacy-view,
+.terms-view {
   min-height: calc(100vh - 106px);
   padding: 44px clamp(18px, 6vw, 84px);
 }
 
-.mypage-view .my-page {
+.mypage-view .my-page,
+.privacy-view .privacy-policy,
+.terms-view .info-policy {
   max-width: 860px;
 }
 
@@ -418,6 +424,76 @@ svg {
 
 .my-page p {
   margin: 8px 0 0;
+}
+
+.privacy-policy,
+.info-policy {
+  display: grid;
+  gap: 18px;
+  line-height: 1.7;
+}
+
+.privacy-policy h2,
+.privacy-policy h3,
+.privacy-policy p,
+.info-policy h2,
+.info-policy h3,
+.info-policy p {
+  margin: 0;
+}
+
+.privacy-policy h2,
+.info-policy h2 {
+  font-size: 26px;
+}
+
+.privacy-policy h3,
+.info-policy h3 {
+  margin-top: 8px;
+  font-size: 17px;
+}
+
+.privacy-policy ul,
+.info-policy ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 20px;
+  color: #26343f;
+}
+
+.policy-date {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.policy-back-button {
+  justify-self: start;
+  margin-top: 8px;
+  padding: 0 18px;
+}
+
+.app-footer {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 18px 24px 24px;
+  border-top: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.66);
+}
+
+.app-footer a {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.app-footer a:hover {
+  color: var(--green-dark);
+  text-decoration: underline;
 }
 
 .mypage-actions {
